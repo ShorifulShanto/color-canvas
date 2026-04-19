@@ -2,26 +2,26 @@
   "placeholderImages": [
     {
       "id": "hero",
-      "description": "Abstract creative brush strokes",
-      "imageUrl": "https://picsum.photos/seed/art-hero/1200/600",
+      "description": "Abstract colorful oil painting",
+      "imageUrl": "https://images.pexels.com/photos/1585325/pexels-photo-1585325.jpeg?auto=compress&cs=tinysrgb&w=1200",
       "imageHint": "abstract painting"
     },
     {
       "id": "featured-1",
-      "description": "Landscape minimalist art",
-      "imageUrl": "https://picsum.photos/seed/featured-1/800/600",
+      "description": "Minimalist mountain landscape art",
+      "imageUrl": "https://images.pexels.com/photos/1619317/pexels-photo-1619317.jpeg?auto=compress&cs=tinysrgb&w=800",
       "imageHint": "minimalist landscape"
     },
     {
       "id": "featured-2",
-      "description": "Geometric pattern digital art",
-      "imageUrl": "https://picsum.photos/seed/featured-2/800/600",
+      "description": "Geometric digital architecture art",
+      "imageUrl": "https://images.pexels.com/photos/2471235/pexels-photo-2471235.jpeg?auto=compress&cs=tinysrgb&w=800",
       "imageHint": "geometric pattern"
     },
     {
       "id": "featured-3",
-      "description": "Portrait expressive colors",
-      "imageUrl": "https://picsum.photos/seed/featured-3/800/600",
+      "description": "Expressive colorful portrait",
+      "imageUrl": "https://images.pexels.com/photos/102127/pexels-photo-102127.jpeg?auto=compress&cs=tinysrgb&w=800",
       "imageHint": "expressive portrait"
     }
   ]

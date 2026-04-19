@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -9,16 +10,16 @@ import { Search, SlidersHorizontal, Grid, List } from "lucide-react";
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Mock data for initial view
+  // Curated Pexels Art Imagery
   const artworks = [
-    { id: "e1", title: "Midnight Resonance", username: "SonicPainter", imageURL: "https://picsum.photos/seed/e1/600/800", likesCount: 452, tags: ["Abstract", "Vivid"] },
-    { id: "e2", title: "Golden Hour", username: "LightCatcher", imageURL: "https://picsum.photos/seed/e2/600/800", likesCount: 321, tags: ["Landscape", "Warm"] },
-    { id: "e3", title: "Fragmented Identity", username: "CubeMaster", imageURL: "https://picsum.photos/seed/e3/600/800", likesCount: 890, tags: ["Digital", "Cubit"] },
-    { id: "e4", title: "The Silent Forest", username: "NatureLover", imageURL: "https://picsum.photos/seed/e4/600/800", likesCount: 156, tags: ["Oil", "Forest"] },
-    { id: "e5", title: "Cosmic Dance", username: "StellarEye", imageURL: "https://picsum.photos/seed/e5/600/800", likesCount: 742, tags: ["Space", "Glow"] },
-    { id: "e6", title: "Paper Waves", username: "OrigamiFan", imageURL: "https://picsum.photos/seed/e6/600/800", likesCount: 233, tags: ["Sculpture", "3D"] },
-    { id: "e7", title: "Urban Decay", username: "CityGrim", imageURL: "https://picsum.photos/seed/e7/600/800", likesCount: 112, tags: ["Street", "B&W"] },
-    { id: "e8", title: "Floral Whisper", username: "PetalPush", imageURL: "https://picsum.photos/seed/e8/600/800", likesCount: 655, tags: ["Floral", "Soft"] },
+    { id: "e1", title: "Midnight Resonance", username: "SonicPainter", imageURL: "https://images.pexels.com/photos/1585325/pexels-photo-1585325.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 452, tags: ["Abstract", "Vivid"] },
+    { id: "e2", title: "Golden Hour", username: "LightCatcher", imageURL: "https://images.pexels.com/photos/1619317/pexels-photo-1619317.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 321, tags: ["Landscape", "Warm"] },
+    { id: "e3", title: "Fragmented Identity", username: "CubeMaster", imageURL: "https://images.pexels.com/photos/2471235/pexels-photo-2471235.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 890, tags: ["Digital", "Cubit"] },
+    { id: "e4", title: "The Silent Forest", username: "NatureLover", imageURL: "https://images.pexels.com/photos/102127/pexels-photo-102127.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 156, tags: ["Oil", "Forest"] },
+    { id: "e5", title: "Cosmic Dance", username: "StellarEye", imageURL: "https://images.pexels.com/photos/1274260/pexels-photo-1274260.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 742, tags: ["Space", "Glow"] },
+    { id: "e6", title: "Sculpted Silence", username: "OrigamiFan", imageURL: "https://images.pexels.com/photos/134402/pexels-photo-134402.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 233, tags: ["Sculpture", "3D"] },
+    { id: "e7", title: "Urban Decay", username: "CityGrim", imageURL: "https://images.pexels.com/photos/1647121/pexels-photo-1647121.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 112, tags: ["Street", "B&W"] },
+    { id: "e8", title: "Floral Whisper", username: "PetalPush", imageURL: "https://images.pexels.com/photos/1166644/pexels-photo-1166644.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 655, tags: ["Floral", "Soft"] },
   ];
 
   const filteredArtworks = artworks.filter(art => 

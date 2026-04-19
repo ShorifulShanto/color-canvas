@@ -1,18 +1,17 @@
+
 "use client";
 
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { User, Settings, Edit2, Grid, Heart, MapPin, Calendar } from "lucide-react";
+import { User, Settings, Edit2, Grid, Heart, MapPin } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function ProfilePage({ params }: { params: { username: string } }) {
   const { user, profile } = useAuth();
   
-  // Simulation: Checking if current user is viewing their own profile
   const isOwnProfile = profile?.username === params.username || user?.uid === params.username;
 
-  // Mock profile data
   const profileData = {
     username: params.username,
     bio: "Digital explorer & creator of abstract wonders. Capturing the beauty of the unseen.",
@@ -21,9 +20,9 @@ export default function ProfilePage({ params }: { params: { username: string } }
     followers: 1240,
     following: 450,
     artworks: [
-      { id: "p1", title: "Midnight Echo", username: params.username, imageURL: "https://picsum.photos/seed/p1/600/800", likesCount: 45, tags: ["Abstract"] },
-      { id: "p2", title: "Sunbeam", username: params.username, imageURL: "https://picsum.photos/seed/p2/600/800", likesCount: 12, tags: ["Warm"] },
-      { id: "p3", title: "Glass City", username: params.username, imageURL: "https://picsum.photos/seed/p3/600/800", likesCount: 89, tags: ["Urban"] },
+      { id: "p1", title: "Midnight Echo", username: params.username, imageURL: "https://images.pexels.com/photos/2471234/pexels-photo-2471234.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 45, tags: ["Abstract"] },
+      { id: "p2", title: "Sunbeam", username: params.username, imageURL: "https://images.pexels.com/photos/1646953/pexels-photo-1646953.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 12, tags: ["Warm"] },
+      { id: "p3", title: "Glass City", username: params.username, imageURL: "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 89, tags: ["Urban"] },
     ]
   };
 
@@ -34,7 +33,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
           <div className="relative group">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary border-4 border-white overflow-hidden shadow-xl">
-               <img src={`https://picsum.photos/seed/${params.username}/300/300`} alt="Avatar" className="w-full h-full object-cover" />
+               <img src={`https://images.pexels.com/photos/1585325/pexels-photo-1585325.jpeg?auto=compress&cs=tinysrgb&w=300&h=300&fit=crop`} alt="Avatar" className="w-full h-full object-cover" />
             </div>
             {isOwnProfile && (
               <button className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 transition-transform">

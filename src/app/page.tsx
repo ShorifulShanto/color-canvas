@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -10,12 +11,12 @@ import { useAuth } from "@/context/AuthContext";
 export default function Home() {
   const { user } = useAuth();
   
-  // Static mock data for demo
+  // High quality Pexels art imagery
   const latestArtworks = [
-    { id: "1", title: "Neon Dreams", username: "DigitalArtisan", imageURL: "https://picsum.photos/seed/12/600/800", likesCount: 124, tags: ["Digital", "Vibrant"] },
-    { id: "2", title: "Serenity", username: "NatureLover", imageURL: "https://picsum.photos/seed/15/600/800", likesCount: 89, tags: ["Minimalist", "Calm"] },
-    { id: "3", title: "Urban Jungle", username: "StreetLens", imageURL: "https://picsum.photos/seed/18/600/800", likesCount: 256, tags: ["Photography", "City"] },
-    { id: "4", title: "Midnight Echo", username: "AbstractSoul", imageURL: "https://picsum.photos/seed/21/600/800", likesCount: 67, tags: ["Abstract", "Dark"] },
+    { id: "1", title: "Neon Dreams", username: "DigitalArtisan", imageURL: "https://images.pexels.com/photos/2832382/pexels-photo-2832382.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 124, tags: ["Digital", "Vibrant"] },
+    { id: "2", title: "Serenity", username: "NatureLover", imageURL: "https://images.pexels.com/photos/1646953/pexels-photo-1646953.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 89, tags: ["Minimalist", "Calm"] },
+    { id: "3", title: "Urban Jungle", username: "StreetLens", imageURL: "https://images.pexels.com/photos/20967/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=600", likesCount: 256, tags: ["Photography", "City"] },
+    { id: "4", title: "Midnight Echo", username: "AbstractSoul", imageURL: "https://images.pexels.com/photos/2471234/pexels-photo-2471234.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 67, tags: ["Abstract", "Dark"] },
   ];
 
   const heroImage = PlaceHolderImages.find(img => img.id === "hero")?.imageUrl;
@@ -88,15 +89,15 @@ export default function Home() {
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="group relative aspect-square bg-primary/20 rounded-xl overflow-hidden animate-pulse">
+            <div key={i} className="group relative aspect-square bg-primary/20 rounded-xl overflow-hidden shadow-sm">
                <img 
-                 src={`https://picsum.photos/seed/latest-${i}/500/500`} 
+                 src={`https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop&random=${i}`} 
                  alt={`Art ${i}`} 
                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                />
                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                  <span className="text-white font-medium">Untitled #{i + 1}</span>
-                  <span className="text-white/70 text-xs">@artist_name</span>
+                  <span className="text-white font-medium">Inspiration #{i + 1}</span>
+                  <span className="text-white/70 text-xs">@creative_mind</span>
                </div>
             </div>
           ))}
