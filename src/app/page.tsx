@@ -11,7 +11,6 @@ import { useAuth } from "@/context/AuthContext";
 export default function Home() {
   const { user } = useAuth();
   
-  // High quality Pexels art imagery
   const latestArtworks = [
     { id: "1", title: "Neon Dreams", username: "DigitalArtisan", imageURL: "https://images.pexels.com/photos/2832382/pexels-photo-2832382.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 124, tags: ["Digital", "Vibrant"] },
     { id: "2", title: "Serenity", username: "NatureLover", imageURL: "https://images.pexels.com/photos/1646953/pexels-photo-1646953.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 89, tags: ["Minimalist", "Calm"] },
@@ -20,6 +19,7 @@ export default function Home() {
   ];
 
   const heroImage = PlaceHolderImages.find(img => img.id === "hero")?.imageUrl;
+  const latestUploads = PlaceHolderImages.filter(img => img.id.startsWith("art-"));
 
   return (
     <div className="flex flex-col gap-16 pb-16">
@@ -30,6 +30,7 @@ export default function Home() {
             src={heroImage} 
             alt="Hero Background" 
             className="w-full h-full object-cover opacity-60 mix-blend-multiply"
+            data-ai-hint="abstract painting"
           />
           <div className="absolute inset-0 bg-gradient-to-b from-background/10 via-background/40 to-background" />
         </div>
@@ -88,15 +89,17 @@ export default function Home() {
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="group relative aspect-square bg-primary/20 rounded-xl overflow-hidden shadow-sm">
+          {latestUploads.map((art, i) => (
+            <div key={art.id} className="group relative aspect-square bg-muted rounded-xl overflow-hidden shadow-sm transition-all duration-300 hover:shadow-md">
                <img 
-                 src={`https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg?auto=compress&cs=tinysrgb&w=400&h=400&fit=crop&random=${i}`} 
-                 alt={`Art ${i}`} 
-                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                 src={art.imageUrl} 
+                 alt={art.description} 
+                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+                 loading="lazy"
+                 data-ai-hint={art.imageHint}
                />
-               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
-                  <span className="text-white font-medium">Inspiration #{i + 1}</span>
+               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                  <span className="text-white font-medium text-sm">{art.description}</span>
                   <span className="text-white/70 text-xs">@creative_mind</span>
                </div>
             </div>
