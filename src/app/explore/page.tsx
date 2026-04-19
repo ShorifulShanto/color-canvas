@@ -5,12 +5,15 @@ import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { Search, SlidersHorizontal, Grid, List } from "lucide-react";
+import { Search, SlidersHorizontal, Grid, List, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
   
-  // Expanded collection of curated Pexels Art Imagery (20+ items)
+  const tags = ["Abstract", "Landscape", "Digital", "Oil", "Space", "Minimalist", "Neon", "Portrait"];
+
   const artworks = [
     { id: "e1", title: "Midnight Resonance", username: "SonicPainter", imageURL: "https://images.pexels.com/photos/1585325/pexels-photo-1585325.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 452, tags: ["Abstract", "Vivid"] },
     { id: "e2", title: "Golden Hour", username: "LightCatcher", imageURL: "https://images.pexels.com/photos/1619317/pexels-photo-1619317.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 321, tags: ["Landscape", "Warm"] },
@@ -23,55 +26,63 @@ export default function ExplorePage() {
     { id: "e9", title: "Oceanic Bliss", username: "WaveRider", imageURL: "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 210, tags: ["Abstract", "Blue"] },
     { id: "e10", title: "Chromatic Chaos", username: "PrismArt", imageURL: "https://images.pexels.com/photos/1193742/pexels-photo-1193742.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 543, tags: ["Vibrant", "Expressionist"] },
     { id: "e11", title: "Ethereal Layers", username: "TextureKing", imageURL: "https://images.pexels.com/photos/1572386/pexels-photo-1572386.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 332, tags: ["Impasto", "Textured"] },
-    { id: "e12", title: "Morning Mist", username: "PastelDreams", imageURL: "https://images.pexels.com/photos/1646953/pexels-photo-1646953.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 445, tags: ["Pastel", "Minimal"] },
+    { id: "e12", title: "Morning Mist", username: "PastelDreams", imageURL: "https://images.pexels.com/photos/1646953/pexels-photo-1646953.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 445, tags: ["Pastel", "Minimalist"] },
     { id: "e13", title: "Cyberpunk Alley", username: "NeonVision", imageURL: "https://images.pexels.com/photos/2832382/pexels-photo-2832382.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 988, tags: ["Neon", "Digital"] },
     { id: "e14", title: "City Pulse", username: "Metropolis", imageURL: "https://images.pexels.com/photos/20967/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=600", likesCount: 125, tags: ["Architecture", "Modern"] },
-    { id: "e15", title: "Stygian Depths", username: "ShadowWorks", imageURL: "https://images.pexels.com/photos/2471234/pexels-photo-2471234.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 67, tags: ["Dark", "Abstract"] },
-    { id: "e16", title: "Artist's Sanctum", username: "StudioVibes", imageURL: "https://images.pexels.com/photos/3246665/pexels-photo-3246665.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 812, tags: ["Studio", "Inspiration"] },
     { id: "e17", title: "Swirling Skies", username: "GoghForward", imageURL: "https://images.pexels.com/photos/161154/pexels-photo-161154.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 1540, tags: ["Classic", "Impressionism"] },
     { id: "e18", title: "Fluidity", username: "AquaArt", imageURL: "https://images.pexels.com/photos/1070527/pexels-photo-1070527.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 290, tags: ["Watercolour", "Flow"] },
     { id: "e19", title: "Ancient Gaze", username: "HistoryBuff", imageURL: "https://images.pexels.com/photos/1266808/pexels-photo-1266808.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 411, tags: ["Statue", "Classic"] },
     { id: "e20", title: "Canvas Playground", username: "CreativeFlow", imageURL: "https://images.pexels.com/photos/1670044/pexels-photo-1670044.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 560, tags: ["Acrylic", "Modern"] },
-    { id: "e21", title: "Sunlit Gallery", username: "Exhibitionist", imageURL: "https://images.pexels.com/photos/2096430/pexels-photo-2096430.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 723, tags: ["Exhibition", "Gallery"] },
   ];
 
-  const filteredArtworks = artworks.filter(art => 
-    art.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    art.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    art.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  const filteredArtworks = artworks.filter(art => {
+    const matchesSearch = art.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          art.username.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesTag = selectedTag ? art.tags.includes(selectedTag) : true;
+    return matchesSearch && matchesTag;
+  });
 
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
       <div className="space-y-4 max-w-2xl">
         <h1 className="font-headline font-bold text-4xl">Explore Gallery</h1>
         <p className="text-muted-foreground text-lg">
-          Discover unique creations from around the world. Filter by style, medium, or artist.
+          Discover unique creations. Filter by style, medium, or artist.
         </p>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-center justify-between sticky top-[4.5rem] z-40 bg-background/80 backdrop-blur-md py-4 border-b">
-        <div className="relative w-full md:max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
-          <Input 
-            className="pl-10 h-12 rounded-full border-primary/20 focus-visible:ring-accent"
-            placeholder="Search artworks, artists, or tags..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-        
-        <div className="flex items-center gap-2 w-full md:w-auto">
-          <Button variant="outline" className="rounded-full h-12 px-6 flex items-center gap-2">
-            <SlidersHorizontal size={18} /> Filters
-          </Button>
-          <div className="hidden sm:flex border rounded-full p-1 bg-primary/10">
-            <Button size="icon" variant="ghost" className="h-10 w-10 rounded-full bg-white shadow-sm">
-              <Grid size={18} />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-10 w-10 rounded-full">
-              <List size={18} />
-            </Button>
+      <div className="sticky top-[4.5rem] z-40 bg-background/95 backdrop-blur-md py-6 border-y space-y-4">
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div className="relative w-full md:max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <Input 
+              className="pl-12 h-12 rounded-full border-primary/20 bg-white focus-visible:ring-accent"
+              placeholder="Search artists or titles..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-4 w-full md:w-auto">
+            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
+              {tags.map(tag => (
+                <Badge 
+                  key={tag} 
+                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                  className={`cursor-pointer px-4 py-1.5 rounded-full transition-all text-sm font-medium border
+                    ${selectedTag === tag 
+                      ? "bg-accent text-white border-accent" 
+                      : "bg-white text-muted-foreground border-primary/20 hover:border-accent"}`}
+                >
+                  {tag}
+                </Badge>
+              ))}
+            </div>
+            {selectedTag && (
+              <Button variant="ghost" size="sm" onClick={() => setSelectedTag(null)} className="h-8 w-8 p-0 rounded-full">
+                <X size={16} />
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -87,9 +98,11 @@ export default function ExplorePage() {
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
             <Search size={32} />
           </div>
-          <h3 className="font-headline font-bold text-2xl">No results found</h3>
-          <p className="text-muted-foreground">Try adjusting your search terms or filters.</p>
-          <Button variant="outline" onClick={() => setSearchQuery("")}>Clear Search</Button>
+          <h3 className="font-headline font-bold text-2xl">No matches found</h3>
+          <p className="text-muted-foreground">Try clearing your filters or search terms.</p>
+          <Button variant="outline" className="rounded-full" onClick={() => { setSearchQuery(""); setSelectedTag(null); }}>
+            Clear All
+          </Button>
         </div>
       )}
     </div>
