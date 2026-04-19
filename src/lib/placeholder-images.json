@@ -1,3 +1,28 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "Abstract creative brush strokes",
+      "imageUrl": "https://picsum.photos/seed/art-hero/1200/600",
+      "imageHint": "abstract painting"
+    },
+    {
+      "id": "featured-1",
+      "description": "Landscape minimalist art",
+      "imageUrl": "https://picsum.photos/seed/featured-1/800/600",
+      "imageHint": "minimalist landscape"
+    },
+    {
+      "id": "featured-2",
+      "description": "Geometric pattern digital art",
+      "imageUrl": "https://picsum.photos/seed/featured-2/800/600",
+      "imageHint": "geometric pattern"
+    },
+    {
+      "id": "featured-3",
+      "description": "Portrait expressive colors",
+      "imageUrl": "https://picsum.photos/seed/featured-3/800/600",
+      "imageHint": "expressive portrait"
+    }
+  ]
 }
