@@ -5,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { auth } from "@/lib/firebase";
 import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
-import { Palette, LogOut, User, Upload, Search, Home } from "lucide-react";
+import { Palette, LogOut, User, Upload, Search, Home, Wand2 } from "lucide-react";
 
 export function Navbar() {
   const { user, profile } = useAuth();
@@ -36,9 +36,14 @@ export function Navbar() {
             <Search size={16} /> Explore
           </Link>
           {user && (
-            <Link href="/upload" className="hover:text-accent transition-colors flex items-center gap-1">
-              <Upload size={16} /> Upload
-            </Link>
+            <>
+              <Link href="/create" className="hover:text-accent transition-colors flex items-center gap-1">
+                <Wand2 size={16} /> Create
+              </Link>
+              <Link href="/upload" className="hover:text-accent transition-colors flex items-center gap-1">
+                <Upload size={16} /> Upload
+              </Link>
+            </>
           )}
         </nav>
 
