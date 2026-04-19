@@ -10,21 +10,35 @@ import { Search, SlidersHorizontal, Grid, List } from "lucide-react";
 export default function ExplorePage() {
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Curated Pexels Art Imagery
+  // Expanded collection of curated Pexels Art Imagery (20+ items)
   const artworks = [
     { id: "e1", title: "Midnight Resonance", username: "SonicPainter", imageURL: "https://images.pexels.com/photos/1585325/pexels-photo-1585325.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 452, tags: ["Abstract", "Vivid"] },
     { id: "e2", title: "Golden Hour", username: "LightCatcher", imageURL: "https://images.pexels.com/photos/1619317/pexels-photo-1619317.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 321, tags: ["Landscape", "Warm"] },
-    { id: "e3", title: "Fragmented Identity", username: "CubeMaster", imageURL: "https://images.pexels.com/photos/2471235/pexels-photo-2471235.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 890, tags: ["Digital", "Cubit"] },
+    { id: "e3", title: "Fragmented Identity", username: "CubeMaster", imageURL: "https://images.pexels.com/photos/2471235/pexels-photo-2471235.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 890, tags: ["Digital", "Geometric"] },
     { id: "e4", title: "The Silent Forest", username: "NatureLover", imageURL: "https://images.pexels.com/photos/102127/pexels-photo-102127.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 156, tags: ["Oil", "Forest"] },
     { id: "e5", title: "Cosmic Dance", username: "StellarEye", imageURL: "https://images.pexels.com/photos/1274260/pexels-photo-1274260.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 742, tags: ["Space", "Glow"] },
     { id: "e6", title: "Sculpted Silence", username: "OrigamiFan", imageURL: "https://images.pexels.com/photos/134402/pexels-photo-134402.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 233, tags: ["Sculpture", "3D"] },
     { id: "e7", title: "Urban Decay", username: "CityGrim", imageURL: "https://images.pexels.com/photos/1647121/pexels-photo-1647121.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 112, tags: ["Street", "B&W"] },
     { id: "e8", title: "Floral Whisper", username: "PetalPush", imageURL: "https://images.pexels.com/photos/1166644/pexels-photo-1166644.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 655, tags: ["Floral", "Soft"] },
+    { id: "e9", title: "Oceanic Bliss", username: "WaveRider", imageURL: "https://images.pexels.com/photos/1103970/pexels-photo-1103970.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 210, tags: ["Abstract", "Blue"] },
+    { id: "e10", title: "Chromatic Chaos", username: "PrismArt", imageURL: "https://images.pexels.com/photos/1193742/pexels-photo-1193742.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 543, tags: ["Vibrant", "Expressionist"] },
+    { id: "e11", title: "Ethereal Layers", username: "TextureKing", imageURL: "https://images.pexels.com/photos/1572386/pexels-photo-1572386.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 332, tags: ["Impasto", "Textured"] },
+    { id: "e12", title: "Morning Mist", username: "PastelDreams", imageURL: "https://images.pexels.com/photos/1646953/pexels-photo-1646953.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 445, tags: ["Pastel", "Minimal"] },
+    { id: "e13", title: "Cyberpunk Alley", username: "NeonVision", imageURL: "https://images.pexels.com/photos/2832382/pexels-photo-2832382.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 988, tags: ["Neon", "Digital"] },
+    { id: "e14", title: "City Pulse", username: "Metropolis", imageURL: "https://images.pexels.com/photos/20967/pexels-photo.jpg?auto=compress&cs=tinysrgb&w=600", likesCount: 125, tags: ["Architecture", "Modern"] },
+    { id: "e15", title: "Stygian Depths", username: "ShadowWorks", imageURL: "https://images.pexels.com/photos/2471234/pexels-photo-2471234.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 67, tags: ["Dark", "Abstract"] },
+    { id: "e16", title: "Artist's Sanctum", username: "StudioVibes", imageURL: "https://images.pexels.com/photos/3246665/pexels-photo-3246665.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 812, tags: ["Studio", "Inspiration"] },
+    { id: "e17", title: "Swirling Skies", username: "GoghForward", imageURL: "https://images.pexels.com/photos/161154/pexels-photo-161154.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 1540, tags: ["Classic", "Impressionism"] },
+    { id: "e18", title: "Fluidity", username: "AquaArt", imageURL: "https://images.pexels.com/photos/1070527/pexels-photo-1070527.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 290, tags: ["Watercolour", "Flow"] },
+    { id: "e19", title: "Ancient Gaze", username: "HistoryBuff", imageURL: "https://images.pexels.com/photos/1266808/pexels-photo-1266808.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 411, tags: ["Statue", "Classic"] },
+    { id: "e20", title: "Canvas Playground", username: "CreativeFlow", imageURL: "https://images.pexels.com/photos/1670044/pexels-photo-1670044.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 560, tags: ["Acrylic", "Modern"] },
+    { id: "e21", title: "Sunlit Gallery", username: "Exhibitionist", imageURL: "https://images.pexels.com/photos/2096430/pexels-photo-2096430.jpeg?auto=compress&cs=tinysrgb&w=600", likesCount: 723, tags: ["Exhibition", "Gallery"] },
   ];
 
   const filteredArtworks = artworks.filter(art => 
     art.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-    art.username.toLowerCase().includes(searchQuery.toLowerCase())
+    art.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    art.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
   return (
