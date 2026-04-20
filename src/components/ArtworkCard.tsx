@@ -5,11 +5,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Heart, MessageCircle, Share2, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { doc, updateDoc, increment } from "firebase/firestore";
+import { doc, updateDoc, increment, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 interface ArtworkCardProps {
   id: string;
@@ -21,18 +22,41 @@ interface ArtworkCardProps {
 }
 
 export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = [] }: ArtworkCardProps) {
+  const { user } = useAuth();
   const [isLiked, setIsLiked] = useState(false);
   const { toast } = useToast();
 
+  useEffect(() => {
+    if (!user) return;
+    const checkLike = async () => {
+      const likeRef = doc(db, "posts", id, "likes", user.uid);
+      const likeDoc = await getDoc(likeRef);
+      setIsLiked(likeDoc.exists());
+    };
+    checkLike();
+  }, [id, user]);
+
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
-    setIsLiked(!isLiked);
+    if (!user) {
+      toast({ title: "Login required", description: "You need to be logged in to like artwork." });
+      return;
+    }
+
+    const newLikedStatus = !isLiked;
+    setIsLiked(newLikedStatus);
     
     try {
       const postRef = doc(db, "posts", id);
-      await updateDoc(postRef, {
-        likesCount: increment(isLiked ? -1 : 1)
-      });
+      const likeRef = doc(db, "posts", id, "likes", user.uid);
+
+      if (newLikedStatus) {
+        setDoc(likeRef, { likedAt: serverTimestamp() });
+        updateDoc(postRef, { likesCount: increment(1) });
+      } else {
+        deleteDoc(likeRef);
+        updateDoc(postRef, { likesCount: increment(-1) });
+      }
     } catch (error) {
       console.error("Like error", error);
     }
@@ -86,7 +110,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
             className={`flex items-center gap-1.5 transition-colors hover:text-red-500 ${isLiked ? 'text-red-500' : ''}`}
           >
             <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
-            <span className="text-xs font-medium">{likesCount + (isLiked ? 1 : 0)}</span>
+            <span className="text-xs font-medium">{likesCount + (isLiked ? (isLiked && likesCount === 0 ? 1 : 0) : 0)}</span>
           </button>
           <button className="flex items-center gap-1.5 transition-colors hover:text-accent">
             <MessageCircle size={18} />
