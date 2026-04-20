@@ -8,6 +8,8 @@ import { Heart, MessageCircle, Share2, User } from "lucide-react";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { doc, updateDoc, increment } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface ArtworkCardProps {
   id: string;
@@ -22,9 +24,24 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
   const [isLiked, setIsLiked] = useState(false);
   const { toast } = useToast();
 
+  const handleLike = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsLiked(!isLiked);
+    
+    try {
+      const postRef = doc(db, "posts", id);
+      await updateDoc(postRef, {
+        likesCount: increment(isLiked ? -1 : 1)
+      });
+    } catch (error) {
+      console.error("Like error", error);
+    }
+  };
+
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
-    navigator.clipboard.writeText(`${window.location.origin}/artwork/${id}`);
+    const url = `${window.location.origin}/explore?id=${id}`;
+    navigator.clipboard.writeText(url);
     toast({
       title: "Link copied!",
       description: "Artwork link has been copied to your clipboard.",
@@ -34,7 +51,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
   return (
     <Card className="group overflow-hidden border-none shadow-none bg-transparent transition-all duration-300">
       <Link href={`/explore`}>
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-primary/20">
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-white shadow-sm border border-primary/10">
           <Image
             src={imageURL}
             alt={title}
@@ -44,7 +61,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
           />
           <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
             <div className="flex gap-2 flex-wrap">
-              {tags.slice(0, 3).map(tag => (
+              {tags?.slice(0, 3).map(tag => (
                 <Badge key={tag} variant="secondary" className="bg-white/90 text-black border-none text-[10px] font-bold">
                   {tag}
                 </Badge>
@@ -65,7 +82,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
       <CardFooter className="px-0 py-2 flex justify-between items-center text-muted-foreground border-t border-primary/10 mt-2">
         <div className="flex items-center gap-4">
           <button 
-            onClick={() => setIsLiked(!isLiked)}
+            onClick={handleLike}
             className={`flex items-center gap-1.5 transition-colors hover:text-red-500 ${isLiked ? 'text-red-500' : ''}`}
           >
             <Heart size={18} fill={isLiked ? "currentColor" : "none"} />

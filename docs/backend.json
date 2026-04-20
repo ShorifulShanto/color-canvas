@@ -1,0 +1,74 @@
+
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Information about a user.",
+      "type": "object",
+      "properties": {
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "profileImage": { "type": "string" },
+        "bio": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["username", "email", "createdAt"]
+    },
+    "Post": {
+      "title": "Post",
+      "description": "An artwork post shared by a user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "imageUrl": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "likesCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "imageUrl", "title", "createdAt"]
+    },
+    "PostLike": {
+      "title": "PostLike",
+      "description": "Tracks which users liked a post.",
+      "type": "object",
+      "properties": {
+        "likedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["likedAt"]
+    },
+    "PostComment": {
+      "title": "PostComment",
+      "description": "Comments on a post.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "text", "createdAt"]
+    }
+  },
+  "auth": {
+    "providers": ["password"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/backend/entities/UserProfile" },
+      "description": "User profiles."
+    },
+    "/posts/{postId}": {
+      "schema": { "$ref": "#/backend/entities/Post" },
+      "description": "Artwork posts."
+    },
+    "/posts/{postId}/likes/{userId}": {
+      "schema": { "$ref": "#/backend/entities/PostLike" },
+      "description": "Likes on a post."
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": { "$ref": "#/backend/entities/PostComment" },
+      "description": "Comments on a post."
+    }
+  }
+}

@@ -10,13 +10,15 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X, Sparkles, Image as ImageIcon, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
 import { suggestArtworkTags } from "@/ai/flows/ai-artwork-tag-suggestion";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 function UploadContent() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -48,7 +50,7 @@ function UploadContent() {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
       if (selectedFile.size > 5 * 1024 * 1024) {
-        toast({ title: "File too large", description: "Please upload an image under 5MB for best performance.", variant: "destructive" });
+        toast({ title: "File too large", description: "Please upload an image under 5MB.", variant: "destructive" });
         return;
       }
       setFile(selectedFile);
@@ -67,9 +69,9 @@ function UploadContent() {
         description: description
       });
       setTags(response.tags);
-      toast({ title: "Tags Analyzed", description: "AI suggested relevant categories for your art." });
+      toast({ title: "Tags Analyzed", description: "AI suggested relevant categories." });
     } catch (error) {
-      toast({ title: "AI Tagging unavailable", description: "Try manual tagging for now.", variant: "destructive" });
+      toast({ title: "AI Tagging unavailable", description: "Try manual tagging.", variant: "destructive" });
     } finally {
       setIsAiLoading(false);
     }
@@ -77,16 +79,31 @@ function UploadContent() {
 
   const handleUpload = async () => {
     if (!preview || !title) {
-       toast({ title: "Incomplete details", description: "Title and Image are required to publish.", variant: "destructive" });
+       toast({ title: "Incomplete details", description: "Title and Image are required.", variant: "destructive" });
        return;
     }
     
     setIsUploading(true);
-    setTimeout(() => {
-      setIsUploading(false);
-      toast({ title: "Published!", description: "Your artwork is now live in the gallery." });
+    try {
+      // Create post in Firestore
+      await addDoc(collection(db, "posts"), {
+        userId: user.uid,
+        username: profile?.username || "anonymous",
+        imageUrl: preview, // In a real app, you'd upload to Firebase Storage first
+        title,
+        description,
+        tags,
+        likesCount: 0,
+        createdAt: serverTimestamp(),
+      });
+
+      toast({ title: "Published!", description: "Your artwork is now live!" });
       router.push("/explore");
-    }, 1500);
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   return (
@@ -96,7 +113,6 @@ function UploadContent() {
       </button>
 
       <div className="grid md:grid-cols-2 gap-12">
-        {/* Left: Preview Area */}
         <div className="space-y-6">
           <h1 className="font-headline font-bold text-3xl">Finalize Post</h1>
           <div 
@@ -121,7 +137,7 @@ function UploadContent() {
                 </div>
                 <div>
                   <p className="font-semibold text-lg">Upload Art File</p>
-                  <p className="text-sm text-muted-foreground">PNG, JPG or WEBP (max. 5MB)</p>
+                  <p className="text-sm text-muted-foreground">PNG, JPG or WEBP</p>
                 </div>
               </div>
             )}
@@ -160,7 +176,6 @@ function UploadContent() {
           )}
         </div>
 
-        {/* Right: Form Details */}
         <div className="space-y-8 py-4">
           <div className="space-y-4">
             <div className="space-y-2">
