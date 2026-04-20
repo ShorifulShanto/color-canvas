@@ -1,15 +1,22 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2 } from "lucide-react";
+import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getDocs, onSnapshot, orderBy } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Image from "next/image";
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
 
 export default function ProfilePage({ params }: { params: { username: string } }) {
   const { user: currentUser, profile: currentProfile } = useAuth();
@@ -23,7 +30,6 @@ export default function ProfilePage({ params }: { params: { username: string } }
     async function fetchProfile() {
       setLoading(true);
       try {
-        // Find user by username
         const usersRef = collection(db, "users");
         const q = query(usersRef, where("username", "==", params.username));
         const querySnapshot = await getDocs(q);
@@ -33,7 +39,6 @@ export default function ProfilePage({ params }: { params: { username: string } }
           const profileData = { id: profileDoc.id, ...profileDoc.data() };
           setTargetProfile(profileData);
           
-          // Subscribe to user's posts
           const postsRef = collection(db, "posts");
           const postsQuery = query(
             postsRef, 
@@ -42,19 +47,13 @@ export default function ProfilePage({ params }: { params: { username: string } }
           );
           
           const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
-            const posts = snapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            }));
-            setUserPosts(posts);
+            setUserPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
           });
           
           return () => unsubscribe();
-        } else {
-          setTargetProfile(null);
         }
       } catch (error) {
-        console.error("Error fetching profile:", error);
+        console.error("Error:", error);
       } finally {
         setLoading(false);
       }
@@ -63,31 +62,29 @@ export default function ProfilePage({ params }: { params: { username: string } }
     fetchProfile();
   }, [params.username]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="animate-spin text-accent" size={48} />
-      </div>
-    );
-  }
+  const activityData = useMemo(() => {
+    const counts: Record<string, number> = {};
+    userPosts.forEach(post => {
+      if (!post.createdAt) return;
+      const date = post.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      counts[date] = (counts[date] || 0) + 1;
+    });
+    return Object.entries(counts).map(([date, count]) => ({ date, count })).slice(-7);
+  }, [userPosts]);
 
-  if (!targetProfile) {
-    return (
-      <div className="container mx-auto px-4 py-32 text-center space-y-4">
-        <h1 className="text-4xl font-bold font-headline">Artist not found</h1>
-        <p className="text-muted-foreground">The creator @{params.username} does not exist in our studio.</p>
-        <Button onClick={() => window.history.back()}>Go Back</Button>
-      </div>
-    );
-  }
+  const chartConfig = {
+    count: { label: "Artworks", color: "hsl(var(--accent))" }
+  } satisfies ChartConfig;
+
+  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>;
 
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
-      <div className="bg-white/40 backdrop-blur-sm rounded-3xl p-8 border shadow-sm space-y-8">
+      <div className="bg-white/60 backdrop-blur-md rounded-3xl p-8 border shadow-sm space-y-8">
         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-          <div className="relative group">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary border-4 border-white overflow-hidden shadow-xl flex items-center justify-center relative">
-               {targetProfile.profileImage ? (
+          <div className="relative">
+            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary border-4 border-white overflow-hidden shadow-xl flex items-center justify-center">
+               {targetProfile?.profileImage ? (
                  <Image src={targetProfile.profileImage} alt="Avatar" fill className="object-cover" />
                ) : (
                  <UserIcon size={64} className="text-white/50" />
@@ -103,7 +100,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
           <div className="space-y-4 flex-grow">
             <div className="flex flex-wrap items-center gap-4 justify-between">
               <div>
-                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile.username}</h1>
+                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username}</h1>
                 <p className="text-muted-foreground flex items-center gap-1 mt-1">
                   <MapPin size={14} /> Creative Studio
                 </p>
@@ -123,69 +120,77 @@ export default function ProfilePage({ params }: { params: { username: string } }
             </div>
             
             <p className="text-lg max-w-2xl leading-relaxed">
-              {targetProfile.bio || "No bio available yet."}
+              {targetProfile?.bio || "Exploring the boundaries of digital and traditional art."}
             </p>
-            
-            <div className="flex gap-8 border-t pt-4">
-               <div>
-                  <span className="block font-bold text-xl">{userPosts.length}</span>
-                  <span className="text-sm text-muted-foreground">Artworks</span>
-               </div>
-               <div>
-                  <span className="block font-bold text-xl">0</span>
-                  <span className="text-sm text-muted-foreground">Followers</span>
-               </div>
-               <div>
-                  <span className="block font-bold text-xl">0</span>
-                  <span className="text-sm text-muted-foreground">Following</span>
-               </div>
-            </div>
           </div>
         </div>
       </div>
 
-      <Tabs defaultValue="artworks" className="w-full space-y-8">
-        <div className="flex items-center justify-center">
-          <TabsList className="bg-white/80 p-1 rounded-full h-12 shadow-sm border">
-            <TabsTrigger value="artworks" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-              <Grid size={18} /> Gallery
-            </TabsTrigger>
-            <TabsTrigger value="liked" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-              <Heart size={18} /> Liked
-            </TabsTrigger>
-          </TabsList>
+      <div className="grid lg:grid-cols-3 gap-8">
+        <div className="lg:col-span-2 space-y-8">
+          <Tabs defaultValue="artworks" className="w-full space-y-8">
+            <TabsList className="bg-white/80 p-1 rounded-full h-12 shadow-sm border">
+              <TabsTrigger value="artworks" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
+                <Grid size={18} /> Gallery
+              </TabsTrigger>
+              <TabsTrigger value="liked" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
+                <Heart size={18} /> Liked
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="artworks">
+              <div className="artwork-grid">
+                {userPosts.map(art => (
+                  <ArtworkCard 
+                    key={art.id} 
+                    id={art.id}
+                    imageURL={art.imageUrl}
+                    title={art.title}
+                    username={art.username}
+                    likesCount={art.likesCount || 0}
+                    tags={art.tags}
+                  />
+                ))}
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
-        
-        <TabsContent value="artworks" className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-          {userPosts.length > 0 ? (
-            <div className="artwork-grid">
-              {userPosts.map(art => (
-                <ArtworkCard 
-                  key={art.id} 
-                  id={art.id}
-                  imageURL={art.imageUrl}
-                  title={art.title}
-                  username={art.username}
-                  likesCount={art.likesCount || 0}
-                  tags={art.tags}
-                />
-              ))}
+
+        <div className="space-y-8">
+          <div className="bg-white p-6 rounded-3xl border shadow-sm">
+            <h3 className="font-bold mb-4 flex items-center gap-2">
+              <BarChart3 size={18} className="text-accent" /> Creation Activity
+            </h3>
+            <div className="h-[200px] w-full">
+              <ChartContainer config={chartConfig}>
+                <BarChart data={activityData}>
+                  <XAxis dataKey="date" hide />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                </BarChart>
+              </ChartContainer>
             </div>
-          ) : (
-            <div className="text-center py-20 bg-white/30 rounded-3xl border border-dashed flex flex-col items-center justify-center space-y-4">
-              <Grid className="text-muted-foreground/30" size={48} />
-              <p className="text-muted-foreground font-medium">No artworks shared by this artist yet.</p>
-            </div>
-          )}
-        </TabsContent>
-        
-        <TabsContent value="liked">
-          <div className="text-center py-20 bg-white/30 rounded-3xl border border-dashed flex flex-col items-center justify-center space-y-4">
-            <Heart className="text-muted-foreground/30" size={48} />
-            <p className="text-muted-foreground font-medium">This collection is currently private.</p>
+            <p className="text-xs text-muted-foreground mt-4 text-center">Your artistic momentum over the last few uploads.</p>
           </div>
-        </TabsContent>
-      </Tabs>
+
+          <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col items-center gap-4">
+             <div className="flex gap-8 text-center w-full">
+               <div className="flex-1">
+                 <span className="block font-bold text-2xl">{userPosts.length}</span>
+                 <span className="text-xs text-muted-foreground uppercase tracking-widest">Works</span>
+               </div>
+               <div className="flex-1 border-x">
+                 <span className="block font-bold text-2xl">0</span>
+                 <span className="text-xs text-muted-foreground uppercase tracking-widest">Followers</span>
+               </div>
+               <div className="flex-1">
+                 <span className="block font-bold text-2xl">0</span>
+                 <span className="text-xs text-muted-foreground uppercase tracking-widest">Following</span>
+               </div>
+             </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

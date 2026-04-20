@@ -39,54 +39,46 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
     if (!user) {
-      toast({ title: "Login required", description: "You need to be logged in to like artwork." });
+      toast({ title: "Login required", description: "Log in to like artwork." });
       return;
     }
 
-    const newLikedStatus = !isLiked;
-    setIsLiked(newLikedStatus);
-    
-    try {
-      const postRef = doc(db, "posts", id);
-      const likeRef = doc(db, "posts", id, "likes", user.uid);
+    const postRef = doc(db, "posts", id);
+    const likeRef = doc(db, "posts", id, "likes", user.uid);
 
-      if (newLikedStatus) {
-        setDoc(likeRef, { likedAt: serverTimestamp() });
-        updateDoc(postRef, { likesCount: increment(1) });
-      } else {
-        deleteDoc(likeRef);
-        updateDoc(postRef, { likesCount: increment(-1) });
-      }
-    } catch (error) {
-      console.error("Like error", error);
+    if (isLiked) {
+      setIsLiked(false);
+      deleteDoc(likeRef);
+      updateDoc(postRef, { likesCount: increment(-1) });
+    } else {
+      setIsLiked(true);
+      setDoc(likeRef, { likedAt: serverTimestamp() });
+      updateDoc(postRef, { likesCount: increment(1) });
     }
   };
 
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
-    const url = `${window.location.origin}/explore?id=${id}`;
+    const url = `${window.location.origin}/explore/${id}`;
     navigator.clipboard.writeText(url);
-    toast({
-      title: "Link copied!",
-      description: "Artwork link has been copied to your clipboard.",
-    });
+    toast({ title: "Link copied!", description: "Share your discovery." });
   };
 
   return (
-    <Card className="group overflow-hidden border-none shadow-none bg-transparent transition-all duration-300">
-      <Link href={`/explore`}>
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-white shadow-sm border border-primary/10">
+    <Card className="group overflow-hidden border-none shadow-none bg-transparent hover:-translate-y-1 transition-transform duration-300">
+      <Link href={`/explore/${id}`}>
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl bg-white shadow-sm border">
           <Image
             src={imageURL}
             alt={title}
             fill
-            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            className="object-cover transition-transform duration-700 group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
-          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
             <div className="flex gap-2 flex-wrap">
-              {tags?.slice(0, 3).map(tag => (
-                <Badge key={tag} variant="secondary" className="bg-white/90 text-black border-none text-[10px] font-bold">
+              {tags?.slice(0, 2).map(tag => (
+                <Badge key={tag} className="bg-white/90 text-black border-none text-[10px] font-bold px-3">
                   {tag}
                 </Badge>
               ))}
@@ -97,27 +89,26 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
       <CardContent className="pt-4 px-0 pb-2">
         <h3 className="font-headline font-semibold text-lg line-clamp-1">{title}</h3>
         <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
-          <div className="w-6 h-6 rounded-full bg-accent/10 flex items-center justify-center overflow-hidden text-accent">
-             <User size={12} />
+          <div className="w-5 h-5 rounded-full bg-accent/10 flex items-center justify-center text-accent">
+             <User size={10} />
           </div>
           <span className="hover:text-accent transition-colors">@{username}</span>
         </div>
       </CardContent>
-      <CardFooter className="px-0 py-2 flex justify-between items-center text-muted-foreground border-t border-primary/10 mt-2">
-        <div className="flex items-center gap-4">
+      <CardFooter className="px-0 py-2 flex justify-between items-center text-muted-foreground mt-1">
+        <div className="flex items-center gap-5">
           <button 
             onClick={handleLike}
             className={`flex items-center gap-1.5 transition-colors hover:text-red-500 ${isLiked ? 'text-red-500' : ''}`}
           >
             <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
-            <span className="text-xs font-medium">{likesCount + (isLiked ? (isLiked && likesCount === 0 ? 1 : 0) : 0)}</span>
+            <span className="text-xs font-medium">{likesCount + (isLiked ? 1 : 0) - (isLiked ? 1 : 0)} {/* Simplified logic */} </span>
           </button>
-          <button className="flex items-center gap-1.5 transition-colors hover:text-accent">
+          <Link href={`/explore/${id}`} className="flex items-center gap-1.5 transition-colors hover:text-accent">
             <MessageCircle size={18} />
-            <span className="text-xs font-medium">0</span>
-          </button>
+          </Link>
         </div>
-        <button onClick={handleShare} className="hover:text-accent transition-colors p-1 rounded-full hover:bg-accent/5">
+        <button onClick={handleShare} className="hover:text-accent transition-colors">
           <Share2 size={18} />
         </button>
       </CardFooter>
