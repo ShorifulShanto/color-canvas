@@ -1,9 +1,10 @@
-"use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { onAuthStateChanged, User } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+'use client';
+
+import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
+import { User } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase';
 
 interface UserProfile {
   username: string;
@@ -26,30 +27,37 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const { user, loading: authLoading } = useUser();
+  const db = useFirestore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
+    async function fetchProfile() {
       if (user) {
-        const docRef = doc(db, "users", user.uid);
+        setProfileLoading(true);
+        const docRef = doc(db, 'users', user.uid);
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
           setProfile(docSnap.data() as UserProfile);
         }
+        setProfileLoading(false);
       } else {
         setProfile(null);
+        setProfileLoading(false);
       }
-      setLoading(false);
-    });
+    }
+    fetchProfile();
+  }, [user, db]);
 
-    return () => unsubscribe();
-  }, []);
+  const value = useMemo(() => ({
+    user,
+    profile,
+    loading: authLoading || profileLoading,
+  }), [user, profile, authLoading, profileLoading]);
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
