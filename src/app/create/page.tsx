@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Search, Download, Share2, Loader2, Wand2, ImageIcon, Plus } from "lucide-react";
+import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, CheckCircle2 } from "lucide-react";
 import { generateArtwork } from "@/ai/flows/generate-artwork";
 import { searchPexels, PexelsPhoto } from "@/lib/pexels";
 import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
 
 export default function CreatePage() {
   const { user } = useAuth();
@@ -21,6 +21,7 @@ export default function CreatePage() {
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [generationStep, setGenerationStep] = useState<string>("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -36,12 +37,22 @@ export default function CreatePage() {
     if (!aiPrompt) return;
     setIsGenerating(true);
     setGeneratedImage(null);
+    setGenerationStep("Generating base image...");
+    
     try {
       const result = await generateArtwork({ prompt: aiPrompt });
       setGeneratedImage(result.imageUrl);
-      toast({ title: "Masterpiece Created!", description: "AI has finished your drawing." });
+      setGenerationStep("Processing complete!");
+      toast({ 
+        title: "Masterpiece Created!", 
+        description: "Your drawing has been generated, upscaled, and stored." 
+      });
     } catch (error) {
-      toast({ title: "Generation failed", description: "The AI engine is currently busy. Try a simpler prompt.", variant: "destructive" });
+      toast({ 
+        title: "Generation failed", 
+        description: "The AI engine encountered an error. Please try again.", 
+        variant: "destructive" 
+      });
     } finally {
       setIsGenerating(false);
     }
@@ -51,26 +62,18 @@ export default function CreatePage() {
     if (!searchQuery) return;
     setIsSearching(true);
     try {
-      const results = await searchPexels(`${searchQuery} art painting drawing`, 12);
+      const results = await searchPexels(`${searchQuery} art`, 12);
       setPexelsResults(results);
-      if (results.length === 0) {
-        toast({ title: "No results", description: "Try broader art terms like 'abstract' or 'oil'." });
-      }
     } catch (error) {
-      toast({ title: "Discovery failed", description: "Could not connect to art library.", variant: "destructive" });
+      toast({ title: "Search failed", variant: "destructive" });
     } finally {
       setIsSearching(false);
     }
   };
 
   const handleCaptureImage = (url: string) => {
-    // Navigate to upload with the image URL as a query param
     const encodedUrl = encodeURIComponent(url);
     router.push(`/upload?source=${encodedUrl}`);
-    toast({ 
-      title: "Inspiration Captured!", 
-      description: "Transferring to studio to finalize your post...",
-    });
   };
 
   return (
@@ -102,13 +105,13 @@ export default function CreatePage() {
                   <Sparkles className="text-accent" /> AI Canvas
                 </CardTitle>
                 <CardDescription>
-                  Your vision, rendered by our most advanced drawing model.
+                  Powered by Replicate SDXL, BLIP, and Cloudinary.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-2">
                   <textarea
-                    placeholder="Describe a unique art piece... e.g. 'A futuristic city made of glass and vines, watercolor style'"
+                    placeholder="Describe your vision... e.g. 'A cybernetic dragon in an oil painting style'"
                     className="w-full min-h-[150px] p-4 rounded-2xl border border-primary/20 bg-background focus:ring-2 focus:ring-accent outline-none resize-none transition-all"
                     value={aiPrompt}
                     onChange={(e) => setAiPrompt(e.target.value)}
@@ -122,7 +125,7 @@ export default function CreatePage() {
                   {isGenerating ? (
                     <>
                       <Loader2 className="animate-spin mr-2" /> 
-                      Manifesting...
+                      {generationStep}
                     </>
                   ) : (
                     <>
@@ -148,7 +151,7 @@ export default function CreatePage() {
                   <div className="w-20 h-20 bg-accent/5 rounded-full flex items-center justify-center mx-auto text-accent">
                     <ImageIcon size={40} />
                   </div>
-                  <p className="text-lg font-medium">Preview Canvas</p>
+                  <p className="text-lg font-medium">Ready for your prompt</p>
                 </div>
               )}
             </div>
@@ -158,7 +161,7 @@ export default function CreatePage() {
         <TabsContent value="discover" className="space-y-8 focus-visible:outline-none">
           <div className="flex gap-2 max-w-2xl mx-auto bg-white p-2 rounded-full border shadow-sm">
             <Input 
-              placeholder="Search for art style (e.g. 'impasto', 'sketch', 'digital')..."
+              placeholder="Search for art style (e.g. 'watercolor')..."
               className="h-12 border-none rounded-full pl-6 focus-visible:ring-0 text-base"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -173,7 +176,7 @@ export default function CreatePage() {
             </Button>
           </div>
 
-          {pexelsResults.length > 0 ? (
+          {pexelsResults.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {pexelsResults.map((photo) => (
                 <div key={photo.id} className="group relative aspect-[3/4] rounded-2xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-lg">
@@ -194,11 +197,6 @@ export default function CreatePage() {
                   </div>
                 </div>
               ))}
-            </div>
-          ) : !isSearching && (
-            <div className="text-center py-20 opacity-30">
-              <Search size={48} className="mx-auto mb-4" />
-              <p className="text-xl">Search the art library for inspiration</p>
             </div>
           )}
         </TabsContent>
