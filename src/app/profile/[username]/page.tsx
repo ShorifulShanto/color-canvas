@@ -7,22 +7,25 @@ import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import Image from "next/image";
+import { useToast } from "@/hooks/use-toast";
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
+import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: { username: string } }) {
   const { user: currentUser, profile: currentProfile } = useAuth();
+  const { toast } = useToast();
   const [targetProfile, setTargetProfile] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isFollowing, setIsFollowing] = useState(false);
   
   const isOwnProfile = currentProfile?.username === params.username;
 
@@ -72,6 +75,22 @@ export default function ProfilePage({ params }: { params: { username: string } }
     return Object.entries(counts).map(([date, count]) => ({ date, count })).slice(-7);
   }, [userPosts]);
 
+  const handleFollow = () => {
+    if (!currentUser) {
+      toast({ title: "Login required", description: "You must be logged in to follow artists." });
+      return;
+    }
+    setIsFollowing(!isFollowing);
+    toast({ 
+      title: isFollowing ? "Unfollowed" : "Following", 
+      description: `You are ${isFollowing ? "no longer" : "now"} following @${targetProfile?.username}` 
+    });
+  };
+
+  const handleEditProfile = () => {
+    toast({ title: "Coming Soon", description: "Profile editing will be available in the next update!" });
+  };
+
   const chartConfig = {
     count: { label: "Artworks", color: "hsl(var(--accent))" }
   } satisfies ChartConfig;
@@ -91,7 +110,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
                )}
             </div>
             {isOwnProfile && (
-              <button className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 transition-transform">
+              <button onClick={handleEditProfile} className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 transition-transform">
                 <Edit2 size={16} />
               </button>
             )}
@@ -108,13 +127,19 @@ export default function ProfilePage({ params }: { params: { username: string } }
               <div className="flex gap-2">
                 {isOwnProfile ? (
                   <>
-                    <Button variant="outline" className="rounded-full px-6">Edit Profile</Button>
+                    <Button onClick={handleEditProfile} variant="outline" className="rounded-full px-6">Edit Profile</Button>
                     <Button variant="ghost" size="icon" className="rounded-full">
                       <Settings size={20} />
                     </Button>
                   </>
                 ) : (
-                  <Button className="bg-accent text-white hover:bg-accent/90 rounded-full px-8 shadow-md">Follow Artist</Button>
+                  <Button 
+                    onClick={handleFollow}
+                    variant={isFollowing ? "outline" : "default"}
+                    className={`${!isFollowing ? "bg-accent text-white hover:bg-accent/90" : ""} rounded-full px-8 shadow-md`}
+                  >
+                    {isFollowing ? "Following" : "Follow Artist"}
+                  </Button>
                 )}
               </div>
             </div>
@@ -151,6 +176,17 @@ export default function ProfilePage({ params }: { params: { username: string } }
                     tags={art.tags}
                   />
                 ))}
+                {userPosts.length === 0 && (
+                  <div className="col-span-full py-20 text-center text-muted-foreground italic">
+                    No artworks shared yet.
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+
+            <TabsContent value="liked">
+              <div className="py-20 text-center text-muted-foreground italic">
+                Your liked works will appear here.
               </div>
             </TabsContent>
           </Tabs>
@@ -162,13 +198,19 @@ export default function ProfilePage({ params }: { params: { username: string } }
               <BarChart3 size={18} className="text-accent" /> Creation Activity
             </h3>
             <div className="h-[200px] w-full">
-              <ChartContainer config={chartConfig}>
-                <BarChart data={activityData}>
-                  <XAxis dataKey="date" hide />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="count" fill="var(--color-count)" radius={4} />
-                </BarChart>
-              </ChartContainer>
+              {activityData.length > 0 ? (
+                <ChartContainer config={chartConfig}>
+                  <BarChart data={activityData}>
+                    <XAxis dataKey="date" hide />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                  </BarChart>
+                </ChartContainer>
+              ) : (
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm italic">
+                  Not enough activity data.
+                </div>
+              )}
             </div>
             <p className="text-xs text-muted-foreground mt-4 text-center">Your artistic momentum over the last few uploads.</p>
           </div>

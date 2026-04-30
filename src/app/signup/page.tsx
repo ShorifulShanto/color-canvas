@@ -1,16 +1,17 @@
+
 "use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
+import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
-import { Palette, Loader2 } from "lucide-react";
+import { Palette, Loader2, Chrome } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SignupPage() {
@@ -32,19 +33,47 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      // Create profile in Firestore
       await setDoc(doc(db, "users", user.uid), {
-        username,
+        username: username.toLowerCase(),
         email,
         profileImage: "",
         bio: "New creator on ColorCanvas!",
         createdAt: serverTimestamp(),
       });
 
-      toast({ title: "Account created!", description: "Welcome to the ColorCanvas community." });
+      toast({ title: "Account created!", description: "Welcome to the community." });
       router.push("/");
     } catch (error: any) {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignup = async () => {
+    setLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
+      
+      const docRef = doc(db, "users", user.uid);
+      const docSnap = await getDoc(docRef);
+      
+      if (!docSnap.exists()) {
+        await setDoc(docRef, {
+          username: user.displayName?.toLowerCase().replace(/\s+/g, "_") || `user_${user.uid.slice(0, 5)}`,
+          email: user.email,
+          profileImage: user.photoURL || "",
+          bio: "New creator on ColorCanvas!",
+          createdAt: serverTimestamp(),
+        });
+      }
+      
+      toast({ title: "Success!", description: "Joined with Google." });
+      router.push("/");
+    } catch (error: any) {
+      toast({ title: "Google Signup failed", description: error.message, variant: "destructive" });
     } finally {
       setLoading(false);
     }
@@ -64,15 +93,15 @@ export default function SignupPage() {
             <CardDescription className="text-base">Start your journey into the world of creative arts</CardDescription>
           </div>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSignup} className="space-y-6">
+        <CardContent className="space-y-6">
+          <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="username">Username</Label>
               <Input 
                 id="username" 
                 placeholder="creative_artist" 
                 required 
-                className="h-12 border-primary/30 rounded-lg focus-visible:ring-accent"
+                className="h-12 border-primary/30 rounded-lg"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
@@ -84,7 +113,7 @@ export default function SignupPage() {
                 type="email" 
                 placeholder="name@example.com" 
                 required 
-                className="h-12 border-primary/30 rounded-lg focus-visible:ring-accent"
+                className="h-12 border-primary/30 rounded-lg"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
@@ -96,7 +125,7 @@ export default function SignupPage() {
                 type="password" 
                 placeholder="At least 6 characters"
                 required 
-                className="h-12 border-primary/30 rounded-lg focus-visible:ring-accent"
+                className="h-12 border-primary/30 rounded-lg"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -109,6 +138,24 @@ export default function SignupPage() {
               {loading ? <Loader2 size={20} className="animate-spin" /> : "Create Account"}
             </Button>
           </form>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-muted-foreground/20"></span>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">Or join with</span>
+            </div>
+          </div>
+
+          <Button 
+            variant="outline" 
+            className="w-full h-12 rounded-full border-primary/30 gap-2"
+            onClick={handleGoogleSignup}
+            disabled={loading}
+          >
+            <Chrome size={18} /> Google
+          </Button>
         </CardContent>
         <CardFooter className="pb-12 pt-6 flex justify-center">
           <p className="text-muted-foreground">
