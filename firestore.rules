@@ -1,0 +1,111 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * COLORCANVAS SECURITY RULES
+     * 
+     * Core Philosophy:
+     * This ruleset implements a Public-Read, Owner-Write model. The platform is designed for
+     * discovery and social interaction (sharing artwork and comments), so data is generally
+     * viewable by the public to support a high-performance explore experience without complex 
+     * server-side filtering. 
+     * 
+     * Data Structure:
+     * - /userProfiles/{userId}: Root collection for user metadata.
+     * - /artworks/{artworkId}: Root collection for shared artistic content.
+     * - /artworks/{artworkId}/comments/{commentId}: Subcollection for artwork discussion.
+     * - /artworks/{artworkId}/likes/{likerId}: Subcollection for social engagement markers.
+     * 
+     * Key Security Decisions:
+     * 1. Authorization Independence: All documents (Artworks, Comments) denormalize the 
+     *    'userId' of their creator. This allows rules to perform atomic authorization checks 
+     *    without costly 'get()' calls to other documents.
+     * 2. Identity-Based Writes: All state-changing operations (create, update, delete) 
+     *    require a verified Firebase Auth UID that matches the owner's ID within the 
+     *    document or the document path.
+     * 3. Prototyping Flexibility: While authorization is strictly enforced based on identity, 
+     *    data shapes are not strictly validated to allow for rapid frontend iteration.
+     * 4. Structural Integrity: We enforce that internal ID fields (like userId) match the 
+     *    authenticated user during creation and remain immutable during updates.
+     */
+
+    // --- Helper Functions ---
+
+    /** Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** Checks if the authenticated user's UID matches a provided ID. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** 
+     * Checks if the user is the owner of an existing document. 
+     * Used for update and delete operations to ensure the document exists and is owned.
+     */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Rules for user profile documents. Allows public reading of profiles, but only the owner can modify their own data.
+     * @path /userProfiles/{userId}
+     * @allow (create) if auth.uid == userId
+     * @deny (update) if auth.uid != userId
+     * @principle Self-Creation and Ownership. Ensures users can only manage their own profile.
+     */
+    match /userProfiles/{userId} {
+      allow get, list: if true;
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Rules for Artwork documents. Publicly readable for the home and explore feeds. Writes restricted to the creator.
+     * @path /artworks/{artworkId}
+     * @allow (create) if auth.uid matches the 'userId' field in the document data.
+     * @deny (delete) if user is not the creator of the artwork.
+     * @principle Public Read with Owner-Only Writes. Relies on denormalized 'userId' field.
+     */
+    match /artworks/{artworkId} {
+      allow get, list: if true;
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if isExistingOwner(resource.data.userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(resource.data.userId);
+
+      /**
+       * @description Rules for comments on a specific artwork. Publicly readable. Only the commenter can edit or delete.
+       * @path /artworks/{artworkId}/comments/{commentId}
+       * @allow (create) if auth.uid matches the 'userId' field in the comment data.
+       * @deny (update) if attempting to change the 'userId' of the comment.
+       * @principle Subcollection Ownership. Uses denormalized UID for atomic write checks.
+       */
+      match /comments/{commentId} {
+        allow get, list: if true;
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow update: if isExistingOwner(resource.data.userId) && request.resource.data.userId == resource.data.userId;
+        allow delete: if isExistingOwner(resource.data.userId);
+      }
+
+      /**
+       * @description Rules for likes on an artwork. Each 'like' document ID is the UID of the liker.
+       * @path /artworks/{artworkId}/likes/{likerId}
+       * @allow (create) if auth.uid == likerId.
+       * @deny (create) if a user attempts to like on behalf of someone else.
+       * @principle Marker Pattern. Uses document existence as a flag, with ID-based authorization.
+       */
+      match /likes/{likerId} {
+        allow get, list: if true;
+        allow create: if isOwner(likerId);
+        allow update: if isExistingOwner(likerId);
+        allow delete: if isExistingOwner(likerId);
+      }
+    }
+  }
+}
