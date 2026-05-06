@@ -5,8 +5,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { useAuth } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +19,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,22 +39,8 @@ export default function LoginPage() {
     setLoading(true);
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-      
-      const docRef = doc(db, "users", user.uid);
-      const docSnap = await getDoc(docRef);
-      
-      if (!docSnap.exists()) {
-        await setDoc(docRef, {
-          username: user.displayName?.toLowerCase().replace(/\s+/g, "_") || `user_${user.uid.slice(0, 5)}`,
-          email: user.email,
-          profileImage: user.photoURL || "",
-          bio: "New creator on ColorCanvas!",
-          createdAt: serverTimestamp(),
-        });
-      }
-      
+      // Use signInWithPopup for the easiest flow in this environment
+      await signInWithPopup(auth, provider);
       toast({ title: "Welcome back!", description: "Logged in with Google." });
       router.push("/");
     } catch (error: any) {

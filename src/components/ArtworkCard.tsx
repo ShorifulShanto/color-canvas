@@ -9,8 +9,9 @@ import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { doc, updateDoc, increment, setDoc, deleteDoc, getDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, useFirestore } from "@/firebase";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface ArtworkCardProps {
   id: string;
@@ -23,18 +24,23 @@ interface ArtworkCardProps {
 
 export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = [] }: ArtworkCardProps) {
   const { user } = useAuth();
+  const db = useFirestore();
   const [isLiked, setIsLiked] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !db) return;
     const checkLike = async () => {
       const likeRef = doc(db, "posts", id, "likes", user.uid);
-      const likeDoc = await getDoc(likeRef);
-      setIsLiked(likeDoc.exists());
+      try {
+        const likeDoc = await getDoc(likeRef);
+        setIsLiked(likeDoc.exists());
+      } catch (err) {
+        // Silently fail for list/get in summary view
+      }
     };
     checkLike();
-  }, [id, user]);
+  }, [id, user, db]);
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -48,17 +54,31 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
 
     if (isLiked) {
       setIsLiked(false);
-      deleteDoc(likeRef);
-      updateDoc(postRef, { likesCount: increment(-1) });
+      deleteDoc(likeRef).catch(async () => {
+        const error = new FirestorePermissionError({ path: likeRef.path, operation: 'delete' });
+        errorEmitter.emit('permission-error', error);
+      });
+      updateDoc(postRef, { likesCount: increment(-1) }).catch(async () => {
+        const error = new FirestorePermissionError({ path: postRef.path, operation: 'update' });
+        errorEmitter.emit('permission-error', error);
+      });
     } else {
       setIsLiked(true);
-      setDoc(likeRef, { likedAt: serverTimestamp() });
-      updateDoc(postRef, { likesCount: increment(1) });
+      const likeData = { likedAt: serverTimestamp() };
+      setDoc(likeRef, likeData).catch(async () => {
+        const error = new FirestorePermissionError({ path: likeRef.path, operation: 'write', requestResourceData: likeData });
+        errorEmitter.emit('permission-error', error);
+      });
+      updateDoc(postRef, { likesCount: increment(1) }).catch(async () => {
+        const error = new FirestorePermissionError({ path: postRef.path, operation: 'update' });
+        errorEmitter.emit('permission-error', error);
+      });
     }
   };
 
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
+    if (typeof window === 'undefined') return;
     const url = `${window.location.origin}/explore/${id}`;
     navigator.clipboard.writeText(url);
     toast({ title: "Link copied!", description: "Share your discovery." });
@@ -102,7 +122,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
             className={`flex items-center gap-1.5 transition-colors hover:text-red-500 ${isLiked ? 'text-red-500' : ''}`}
           >
             <Heart size={18} fill={isLiked ? "currentColor" : "none"} />
-            <span className="text-xs font-medium">{likesCount + (isLiked ? 1 : 0) - (isLiked ? 1 : 0)} {/* Simplified logic */} </span>
+            <span className="text-xs font-medium">{likesCount}</span>
           </button>
           <Link href={`/explore/${id}`} className="flex items-center gap-1.5 transition-colors hover:text-accent">
             <MessageCircle size={18} />

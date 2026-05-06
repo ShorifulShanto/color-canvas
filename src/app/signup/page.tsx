@@ -6,13 +6,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase";
+import { useAuth, useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Palette, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
@@ -21,6 +23,8 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const db = useFirestore();
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,13 +37,24 @@ export default function SignupPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
       const user = userCredential.user;
 
-      await setDoc(doc(db, "users", user.uid), {
-        username: username.toLowerCase(),
+      const userDocRef = doc(db, "users", user.uid);
+      const userData = {
+        username: username.toLowerCase().trim(),
         email,
         profileImage: "",
         bio: "New creator on ColorCanvas!",
         createdAt: serverTimestamp(),
-      });
+      };
+
+      setDoc(userDocRef, userData)
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: userDocRef.path,
+            operation: 'create',
+            requestResourceData: userData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        });
 
       toast({ title: "Account created!", description: "Welcome to the community." });
       router.push("/");
