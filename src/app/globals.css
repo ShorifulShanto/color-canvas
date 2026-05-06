@@ -16,13 +16,13 @@
     --secondary-foreground: 0 0% 0%;
     --muted: 215 14% 83%;
     --muted-foreground: 0 0% 40%;
-    --accent: 215 87% 52%;    /* #1A70ED - Clear Blue */
+    --accent: 0 60% 31%;    /* #7F2020 - Dark Red */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 98%;
     --border: 215 14% 80%;
     --input: 215 14% 80%;
-    --ring: 215 87% 52%;
+    --ring: 0 60% 31%;
     --radius: 0.75rem;
   }
 }
