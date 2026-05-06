@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -13,7 +14,9 @@ import {
   Search, 
   Home, 
   Wand2, 
-  Menu 
+  Menu,
+  Sparkles,
+  LayoutGrid
 } from "lucide-react";
 import {
   Sheet,
@@ -37,10 +40,10 @@ export function Navbar() {
 
   const navItems = [
     { label: "Home", href: "/", icon: <Home size={18} /> },
-    { label: "Explore", href: "/explore", icon: <Search size={18} /> },
+    { label: "Explore", href: "/explore", icon: <LayoutGrid size={18} /> },
     ...(user ? [
-      { label: "Create", href: "/create", icon: <Wand2 size={18} /> },
-      { label: "Upload", href: "/upload", icon: <Upload size={18} /> },
+      { label: "AI Studio", href: "/create", icon: <Wand2 size={18} /> },
+      { label: "Upload Work", href: "/upload", icon: <Upload size={18} /> },
     ] : []),
   ];
 
@@ -128,17 +131,28 @@ export function Navbar() {
                     </Link>
                   ))}
                   {user && (
-                    <div className="pt-4 border-t mt-4">
-                       <button 
-                        onClick={handleLogout}
-                        className="flex items-center gap-4 p-3 w-full text-left rounded-2xl hover:bg-destructive/5 text-destructive transition-colors font-medium text-lg"
-                       >
-                        <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                          <LogOut size={20} />
+                    <>
+                      <Link 
+                        href={`/profile/${profile?.username || user.uid}`}
+                        className="flex items-center gap-4 p-3 rounded-2xl hover:bg-accent/5 transition-colors font-medium text-lg"
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-accent">
+                          <User size={20} />
                         </div>
-                        Logout
-                       </button>
-                    </div>
+                        My Profile
+                      </Link>
+                      <div className="pt-4 border-t mt-4">
+                        <button 
+                          onClick={handleLogout}
+                          className="flex items-center gap-4 p-3 w-full text-left rounded-2xl hover:bg-destructive/5 text-destructive transition-colors font-medium text-lg"
+                        >
+                          <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
+                            <LogOut size={20} />
+                          </div>
+                          Logout
+                        </button>
+                      </div>
+                    </>
                   )}
                 </nav>
               </SheetContent>
