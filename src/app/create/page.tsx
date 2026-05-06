@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, Zap, Maximize, Share2 } from "lucide-react";
+import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, Zap, Share2 } from "lucide-react";
 import { generateArtwork } from "@/ai/flows/generate-artwork";
 import { refineArtPrompt } from "@/ai/flows/refine-prompt";
 import { searchPexels, PexelsPhoto } from "@/lib/pexels";
@@ -55,21 +55,22 @@ export default function CreatePage() {
     if (!aiPrompt) return;
     setIsGenerating(true);
     setGeneratedImage(null);
-    setGenerationStep("Starting AI engine...");
+    setGenerationStep("Initializing AI engine...");
     
     try {
-      setGenerationStep("Generating base pixels...");
+      setGenerationStep("Step 1: Generating pixels...");
       const result = await generateArtwork({ prompt: aiPrompt });
       setGeneratedImage(result.imageUrl);
-      setGenerationStep("Finalizing masterpiece...");
+      setGenerationStep("Masterpiece ready!");
       toast({ 
-        title: "Masterpiece Created!", 
-        description: "Your drawing has been generated, upscaled, and stored in Cloudinary." 
+        title: "Success!", 
+        description: "Your artwork has been created and saved." 
       });
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Generation Error:", error);
       toast({ 
         title: "Generation failed", 
-        description: "The AI engine encountered an error. Please verify your Replicate and Cloudinary keys.", 
+        description: error.message || "An unexpected error occurred. Please verify your API keys.", 
         variant: "destructive" 
       });
     } finally {
@@ -101,7 +102,7 @@ export default function CreatePage() {
       <div className="text-center space-y-4">
         <h1 className="font-headline font-bold text-4xl md:text-5xl">AI Creative Studio</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Harness SDXL and BLIP models to render your wildest imaginations in seconds.
+          Render your wildest imaginations in seconds using advanced AI models.
         </p>
       </div>
 
@@ -125,14 +126,14 @@ export default function CreatePage() {
                   <Sparkles className="text-accent" /> Prompt Canvas
                 </CardTitle>
                 <CardDescription>
-                  Describe your masterpiece. Use the Refine tool for professional results.
+                  Describe your vision. Use the Refine tool for professional details.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
                 <div className="space-y-4">
                   <div className="relative">
                     <Textarea
-                      placeholder="Describe your vision... e.g. 'A futuristic city in the style of Van Gogh'"
+                      placeholder="e.g. 'A futuristic city in the style of Van Gogh'"
                       className="w-full min-h-[200px] p-6 rounded-2xl border border-primary/20 bg-background focus:ring-2 focus:ring-accent outline-none resize-none transition-all text-lg"
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
@@ -146,7 +147,7 @@ export default function CreatePage() {
                         className="rounded-full gap-2 shadow-sm bg-white hover:bg-accent hover:text-white border"
                       >
                         {isRefining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
-                        Refine Vision
+                        Refine
                       </Button>
                     </div>
                   </div>
@@ -155,7 +156,7 @@ export default function CreatePage() {
                 <Button 
                   onClick={handleGenerate}
                   disabled={isGenerating || !aiPrompt}
-                  className="w-full h-16 text-lg bg-accent text-white hover:bg-accent/90 rounded-full shadow-lg transition-all hover:scale-[1.02]"
+                  className="w-full h-16 text-lg bg-accent text-white hover:bg-accent/90 rounded-full shadow-lg transition-all"
                 >
                   {isGenerating ? (
                     <>
@@ -164,21 +165,15 @@ export default function CreatePage() {
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-3" size={24} /> Generate Masterpiece
+                      <Wand2 className="mr-3" size={24} /> Generate
                     </>
                   )}
                 </Button>
 
-                <div className="pt-4 flex items-center justify-center gap-6 opacity-60">
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest">
-                    <Badge variant="outline">SDXL 1.0</Badge>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest">
-                    <Badge variant="outline">Upscaled</Badge>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest">
-                    <Badge variant="outline">Auto-Caption</Badge>
-                  </div>
+                <div className="pt-4 flex items-center justify-center gap-4 opacity-60">
+                  <Badge variant="outline">SDXL 1.0</Badge>
+                  <Badge variant="outline">Upscaled</Badge>
+                  <Badge variant="outline">Cloudinary</Badge>
                 </div>
               </CardContent>
             </Card>
@@ -201,10 +196,7 @@ export default function CreatePage() {
                   <div className="w-24 h-24 bg-accent/5 rounded-full flex items-center justify-center mx-auto text-accent">
                     {isGenerating ? <Loader2 size={48} className="animate-spin" /> : <ImageIcon size={48} />}
                   </div>
-                  <div>
-                    <p className="text-xl font-headline font-bold">Studio Canvas</p>
-                    <p className="text-sm">Your AI-generated art will appear here.</p>
-                  </div>
+                  <p className="text-xl font-headline font-bold">Studio Canvas</p>
                 </div>
               )}
             </div>
@@ -214,7 +206,7 @@ export default function CreatePage() {
         <TabsContent value="discover" className="space-y-8 focus-visible:outline-none">
           <div className="flex gap-2 max-w-2xl mx-auto bg-white p-2 rounded-full border shadow-sm">
             <Input 
-              placeholder="Search for inspiration (e.g. 'Cyberpunk Street')..."
+              placeholder="Search inspiration..."
               className="h-12 border-none rounded-full pl-6 focus-visible:ring-0 text-base"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -229,10 +221,10 @@ export default function CreatePage() {
             </Button>
           </div>
 
-          {pexelsResults.length > 0 ? (
+          {pexelsResults.length > 0 && (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {pexelsResults.map((photo) => (
-                <div key={photo.id} className="group relative aspect-[3/4] rounded-3xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-lg hover:-translate-y-1">
+                <div key={photo.id} className="group relative aspect-[3/4] rounded-3xl overflow-hidden bg-white shadow-sm transition-all hover:-translate-y-1">
                   <Image 
                     src={photo.src.large} 
                     alt={photo.photographer} 
@@ -245,16 +237,11 @@ export default function CreatePage() {
                       className="w-full rounded-full bg-white text-black hover:bg-accent hover:text-white font-bold"
                       onClick={() => handleCaptureImage(photo.src.large2x)}
                     >
-                      Capture Inspiration
+                      Capture
                     </Button>
                   </div>
                 </div>
               ))}
-            </div>
-          ) : (
-            <div className="text-center py-20 opacity-30">
-              <Search size={64} className="mx-auto mb-4" />
-              <p className="text-lg font-bold">Search millions of Pexels photos</p>
             </div>
           )}
         </TabsContent>

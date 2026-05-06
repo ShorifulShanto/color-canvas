@@ -15,9 +15,13 @@ const replicate = new Replicate({
 });
 
 export async function generateWithSDXL(prompt: string): Promise<string> {
-  // Using SDXL as it's a standard high-quality model on Replicate
+  if (!process.env.REPLICATE_API_TOKEN) {
+    throw new Error('REPLICATE_API_TOKEN is not configured');
+  }
+
+  // Using SDXL 1.0
   const output: any = await replicate.run(
-    "stability-ai/sdxl:39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea53d1c2f8ad6f118b0273ca71",
+    "stability-ai/sdxl:7762fd0e23040d01c6a1529196238383e207908c67a36f784e27f47498322e70",
     {
       input: {
         prompt: prompt,
@@ -27,6 +31,11 @@ export async function generateWithSDXL(prompt: string): Promise<string> {
       }
     }
   );
+  
+  if (!output || !output[0]) {
+    throw new Error('Model failed to generate image');
+  }
+  
   return output[0];
 }
 
@@ -58,6 +67,10 @@ export async function captionImage(imageUrl: string): Promise<string> {
 }
 
 export async function uploadToCloudinary(fileUrl: string): Promise<string> {
+  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    throw new Error('Cloudinary is not configured');
+  }
+
   const result = await cloudinary.uploader.upload(fileUrl, {
     folder: 'colorcanvas',
   });
