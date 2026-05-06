@@ -1,25 +1,44 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { Search, X, Loader2 } from "lucide-react";
+import { Search, X, Loader2, Sparkles, Globe, Users, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useFirestore } from "@/firebase";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { searchPexels, PexelsPhoto } from "@/lib/pexels";
+import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
   const db = useFirestore();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [artworks, setArtworks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const router = useRouter();
   
-  const tags = ["Abstract", "Landscape", "Digital", "Oil", "Space", "Minimalist", "Neon", "Portrait"];
+  // Pexels State
+  const [pexelsQuery, setPexelsQuery] = useState("");
+  const [pexelsPhotos, setPexelsPhotos] = useState<PexelsPhoto[]>([]);
+  const [isPexelsLoading, setIsPexelsLoading] = useState(false);
 
+  // Community State
+  const [communityArtworks, setCommunityArtworks] = useState<any[]>([]);
+  const [isCommunityLoading, setIsCommunityLoading] = useState(true);
+  const [communitySearch, setCommunitySearch] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  
+  const communityTags = ["Abstract", "Landscape", "Digital", "Oil", "Space", "Minimalist", "Neon", "Portrait"];
+
+  // Fetch Pexels on mount
+  useEffect(() => {
+    handlePexelsSearch("art artistic");
+  }, []);
+
+  // Fetch Community on mount
   useEffect(() => {
     if (!db) return;
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
@@ -28,104 +47,170 @@ export default function ExplorePage() {
         id: doc.id,
         ...doc.data()
       }));
-      setArtworks(posts);
-      setLoading(false);
+      setCommunityArtworks(posts);
+      setIsCommunityLoading(false);
     }, async (error) => {
       const permissionError = new FirestorePermissionError({
         path: 'posts',
         operation: 'list',
       });
       errorEmitter.emit('permission-error', permissionError);
-      setLoading(false);
+      setIsCommunityLoading(false);
     });
 
     return () => unsubscribe();
   }, [db]);
 
-  const filteredArtworks = artworks.filter(art => {
+  const handlePexelsSearch = async (term: string) => {
+    setIsPexelsLoading(true);
+    try {
+      const results = await searchPexels(term || "art", 24);
+      setPexelsPhotos(results);
+    } finally {
+      setIsPexelsLoading(false);
+    }
+  };
+
+  const filteredCommunity = communityArtworks.filter(art => {
     const matchesSearch = 
-      art.title?.toLowerCase().includes(searchQuery.toLowerCase()) || 
-      art.username?.toLowerCase().includes(searchQuery.toLowerCase());
+      art.title?.toLowerCase().includes(communitySearch.toLowerCase()) || 
+      art.username?.toLowerCase().includes(communitySearch.toLowerCase());
     const matchesTag = selectedTag ? art.tags?.includes(selectedTag) : true;
     return matchesSearch && matchesTag;
   });
 
+  const handleCaptureImage = (url: string) => {
+    const encodedUrl = encodeURIComponent(url);
+    router.push(`/upload?source=${encodedUrl}`);
+  };
+
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
-      <div className="space-y-4 max-w-2xl">
-        <h1 className="font-headline font-bold text-4xl">Explore Gallery</h1>
+      <div className="space-y-4 max-w-3xl">
+        <h1 className="font-headline font-bold text-4xl md:text-5xl">Discovery Engine</h1>
         <p className="text-muted-foreground text-lg">
-          Discover unique creations from around the world.
+          Explore millions of high-quality inspirations or browse community masterpieces.
         </p>
       </div>
 
-      <div className="sticky top-[4.5rem] z-40 bg-background/95 backdrop-blur-md py-6 border-y space-y-4">
-        <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div className="relative w-full md:max-w-md">
+      <Tabs defaultValue="discovery" className="space-y-10">
+        <div className="flex flex-col md:flex-row gap-6 items-center justify-between sticky top-[4.5rem] z-40 bg-background/95 backdrop-blur-md py-6 border-y">
+          <TabsList className="bg-white/80 p-1 rounded-full h-12 shadow-sm border w-full max-w-xs md:max-w-md shrink-0">
+            <TabsTrigger value="discovery" className="rounded-full px-6 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white flex-1">
+              <Globe size={18} /> Global Portal
+            </TabsTrigger>
+            <TabsTrigger value="community" className="rounded-full px-6 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white flex-1">
+              <Users size={18} /> Community
+            </TabsTrigger>
+          </TabsList>
+
+          <div className="relative w-full max-w-xl">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
             <Input 
-              className="pl-12 h-12 rounded-full border-primary/20 bg-white focus-visible:ring-accent"
-              placeholder="Search artists or titles..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 h-12 rounded-full border-primary/20 bg-white focus-visible:ring-accent shadow-sm"
+              placeholder="Search global discovery or community tags..."
+              value={pexelsQuery || communitySearch}
+              onChange={(e) => {
+                setPexelsQuery(e.target.value);
+                setCommunitySearch(e.target.value);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handlePexelsSearch(pexelsQuery);
+              }}
             />
           </div>
-          
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 hide-scrollbar">
-              {tags.map(tag => (
-                <Badge 
-                  key={tag} 
-                  onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
-                  className={`cursor-pointer px-4 py-1.5 rounded-full transition-all text-sm font-medium border
-                    ${selectedTag === tag 
-                      ? "bg-accent text-white border-accent" 
-                      : "bg-white text-muted-foreground border-primary/20 hover:border-accent"}`}
-                >
-                  {tag}
-                </Badge>
+        </div>
+
+        <TabsContent value="discovery" className="space-y-8 focus-visible:outline-none">
+          {isPexelsLoading ? (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <Loader2 className="animate-spin text-accent" size={40} />
+              <p className="text-muted-foreground font-medium">Connecting to Pexels Global...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {pexelsPhotos.map((photo) => (
+                <div key={photo.id} className="group relative aspect-[3/4] rounded-3xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
+                  <Image 
+                    src={photo.src.large} 
+                    alt={photo.photographer} 
+                    fill
+                    className="object-cover transition-transform duration-700 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6 space-y-4">
+                    <div className="space-y-1">
+                      <p className="text-white font-bold text-sm truncate">{photo.photographer}</p>
+                      <p className="text-white/70 text-xs">Pexels Curator</p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="w-full rounded-full bg-white text-black hover:bg-accent hover:text-white font-bold transition-colors"
+                      onClick={() => handleCaptureImage(photo.src.large2x)}
+                    >
+                      <Plus size={16} className="mr-2" /> Capture Inspiration
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="community" className="space-y-12 focus-visible:outline-none">
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider mr-2">Quick Filters:</span>
+            {communityTags.map(tag => (
+              <Badge 
+                key={tag} 
+                onClick={() => setSelectedTag(selectedTag === tag ? null : tag)}
+                className={`cursor-pointer px-4 py-1.5 rounded-full transition-all text-sm font-medium border
+                  ${selectedTag === tag 
+                    ? "bg-accent text-white border-accent" 
+                    : "bg-white text-muted-foreground border-primary/20 hover:border-accent"}`}
+              >
+                {tag}
+              </Badge>
+            ))}
             {selectedTag && (
               <Button variant="ghost" size="sm" onClick={() => setSelectedTag(null)} className="h-8 w-8 p-0 rounded-full">
                 <X size={16} />
               </Button>
             )}
           </div>
-        </div>
-      </div>
 
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-32 space-y-4">
-          <Loader2 className="animate-spin text-accent" size={40} />
-          <p className="text-muted-foreground font-medium">Loading masterpieces...</p>
-        </div>
-      ) : filteredArtworks.length > 0 ? (
-        <div className="artwork-grid">
-          {filteredArtworks.map((art) => (
-            <ArtworkCard 
-              key={art.id} 
-              id={art.id}
-              imageURL={art.imageUrl}
-              title={art.title}
-              username={art.username}
-              likesCount={art.likesCount || 0}
-              tags={art.tags}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-32 space-y-4">
-          <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
-            <Search size={32} />
-          </div>
-          <h3 className="font-headline font-bold text-2xl">No matches found</h3>
-          <p className="text-muted-foreground">Try clearing your filters or search terms.</p>
-          <Button variant="outline" className="rounded-full" onClick={() => { setSearchQuery(""); setSelectedTag(null); }}>
-            Clear All
-          </Button>
-        </div>
-      )}
+          {isCommunityLoading ? (
+            <div className="flex flex-col items-center justify-center py-32 space-y-4">
+              <Loader2 className="animate-spin text-accent" size={40} />
+              <p className="text-muted-foreground font-medium">Loading community works...</p>
+            </div>
+          ) : filteredCommunity.length > 0 ? (
+            <div className="artwork-grid">
+              {filteredCommunity.map((art) => (
+                <ArtworkCard 
+                  key={art.id} 
+                  id={art.id}
+                  imageURL={art.imageUrl}
+                  title={art.title}
+                  username={art.username}
+                  likesCount={art.likesCount || 0}
+                  tags={art.tags}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-32 space-y-4">
+              <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+                <Users size={32} />
+              </div>
+              <h3 className="font-headline font-bold text-2xl">No community matches</h3>
+              <p className="text-muted-foreground">Try clearing your filters or browse the global discovery portal.</p>
+              <Button variant="outline" className="rounded-full" onClick={() => { setCommunitySearch(""); setSelectedTag(null); }}>
+                Clear Filters
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
