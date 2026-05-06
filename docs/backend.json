@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "UserProfile": {
@@ -53,11 +54,11 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the UserProfile who uploaded this artwork. (Relationship: UserProfile 1:N Artwork)"
+          "description": "Reference to the UserProfile who uploaded this artwork."
         },
         "imageURL": {
           "type": "string",
-          "description": "URL to the artwork image stored in Firebase Storage.",
+          "description": "URL to the artwork image.",
           "format": "uri"
         },
         "title": {
@@ -79,7 +80,7 @@
         },
         "tags": {
           "type": "array",
-          "description": "An array of tags or categories associated with the artwork, potentially AI-suggested.",
+          "description": "An array of tags associated with the artwork.",
           "items": {
             "type": "string"
           }
@@ -106,11 +107,11 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to the UserProfile who made this comment. (Relationship: UserProfile 1:N Comment)"
+          "description": "Reference to the UserProfile who made this comment."
         },
         "artworkId": {
           "type": "string",
-          "description": "Reference to the Artwork on which this comment was made. (Relationship: Artwork 1:N Comment)"
+          "description": "Reference to the Artwork on which this comment was made."
         },
         "text": {
           "type": "string",
@@ -134,84 +135,26 @@
   "auth": {
     "providers": [
       "password",
+      "google.com",
       "anonymous"
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/userProfiles/{userId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "Stores individual user profiles. The document ID `{userId}` matches the Firebase Auth UID. Read access is public for certain fields; write access is restricted to the owner (`request.auth.uid == userId`).",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique ID of the user, matching their Firebase Auth UID."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/artworks/{artworkId}",
-        "definition": {
-          "entityName": "Artwork",
-          "schema": {
-            "$ref": "#/backend/entities/Artwork"
-          },
-          "description": "Stores artwork content uploaded by users. Documents are publicly readable (for Homepage/Explore). Write/update/delete access is restricted to the owner based on the denormalized 'userId' field in the document itself.",
-          "params": [
-            {
-              "name": "artworkId",
-              "description": "The unique ID of the artwork."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/artworks/{artworkId}/comments/{commentId}",
-        "definition": {
-          "entityName": "Comment",
-          "schema": {
-            "$ref": "#/backend/entities/Comment"
-          },
-          "description": "Stores comments made on a specific artwork. Documents are publicly readable. Write/update/delete access is restricted to the commenter based on the denormalized 'userId' field in the document itself. Includes denormalized 'artworkId' and 'userId' for authorization independence.",
-          "params": [
-            {
-              "name": "artworkId",
-              "description": "The unique ID of the parent artwork."
-            },
-            {
-              "name": "commentId",
-              "description": "The unique ID of the comment."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/artworks/{artworkId}/likes/{likerId}",
-        "definition": {
-          "entityName": "UserProfile",
-          "schema": {
-            "$ref": "#/backend/entities/UserProfile"
-          },
-          "description": "A subcollection to record user likes on an artwork. Each document's ID, '{likerId}', corresponds to the `userId` of the user who liked the artwork. The document itself acts as a marker. This structure enables atomic authorization checks for liking/unliking by checking `request.auth.uid == likerId`.",
-          "params": [
-            {
-              "name": "artworkId",
-              "description": "The unique ID of the parent artwork being liked."
-            },
-            {
-              "name": "likerId",
-              "description": "The unique ID of the user who liked the artwork, matching their Firebase Auth UID."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore data structure for ColorCanvas prioritizes security, scalability, and debuggability by adhering to the core design principles of Authorization Independence, Structural Segregation, and consistent Access Modeling.\n\n**Authorization Independence (CRITICAL):**\n1.  **User Profiles (`/userProfiles/{userId}`):** Each user's profile document ID directly corresponds to their Firebase Authentication `uid`. This ensures that authorization for profile modifications is atomic and clear: `allow write: if request.auth.uid == userId;`. The document itself contains all necessary information for its own security context.\n2.  **Artworks (`/artworks/{artworkId}`):** Each `Artwork` document includes a denormalized `userId` field, explicitly linking it to its owner. This eliminates the need for `get()` calls to a parent `userProfiles` document to determine ownership, making rule evaluation atomic and efficient (e.g., `allow write: if request.auth.uid == resource.data.userId;`). This also enables atomic creation of artworks.\n3.  **Comments (`/artworks/{artworkId}/comments/{commentId}`):** Similarly, each `Comment` document contains a `userId` field to identify the commenter. This denormalization allows for independent and atomic authorization checks directly on the comment document: `allow write: if request.auth.uid == resource.data.userId;`. The `artworkId` is part of the document path, providing its context without requiring a `get()` call.\n4.  **Likes (`/artworks/{artworkId}/likes/{likerId}`):** To track likes without complex lookups, a dedicated subcollection `likes` is created under each artwork. The document ID for a 'like' entry is the `likerId` (the `userId` of the person who liked the artwork). This structure inherently provides authorization independence for like operations: `allow create, delete: if request.auth.uid == likerId;`. The existence of such a document signifies a like, and its atomic creation/deletion is straightforward.\n\n**QAPs (Rules are not Filters) & Structural Segregation:**\n1.  **`/userProfiles/{userId}`:** This collection stores individual user profiles. While a user's *own* profile is writable only by them, public-facing fields (username, profileImageUrl, bio) are generally readable by all. The homogeneous security posture is that all documents are readable, but writes are restricted by `userId`. This supports direct access (`get`) to profiles and eliminates the need for server-side filtering on read.\n2.  **`/artworks/{artworkId}`:** This collection is designed for broad public consumption (e.g., Homepage, Explore Page). All `Artwork` documents share a public read security posture, allowing `list` queries to fetch data without complex security rule filtering (e.g., `allow read: true;`). Write, update, and delete operations are restricted to the artwork's `userId` field, ensuring owner-only modification. This directly enables QAPs for efficient public listing.\n3.  **`/artworks/{artworkId}/comments/{commentId}`:** This subcollection stores comments for a specific artwork. All comments for a given artwork are publicly readable. This allows for efficient `list` queries for comments under an artwork without rule-based filtering. Write/update/delete operations are restricted to the `userId` in the comment document.\n4.  **`/artworks/{artworkId}/likes/{likerId}`:** This subcollection records individual likes. While listing all likers for an artwork is possible, the primary use case is to check if a specific user has liked an artwork (e.g., `get(/artworks/$(artworkId)/likes/$(request.auth.uid)).exists()`). This supports QAPs for `exists()` checks and ensures users can only create/delete their own like entries. All documents here represent a user's like, sharing the same security profile for write access."
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores user profiles."
+    },
+    "/posts/{postId}": {
+      "schema": "Artwork",
+      "description": "Stores artwork posts."
+    },
+    "/posts/{postId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Stores comments on posts."
+    },
+    "/posts/{postId}/likes/{likerId}": {
+      "schema": "UserProfile",
+      "description": "Markers for user likes on posts."
+    }
   }
 }
