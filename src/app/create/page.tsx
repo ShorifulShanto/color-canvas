@@ -8,11 +8,13 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, CheckCircle2 } from "lucide-react";
+import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, Zap } from "lucide-react";
 import { generateArtwork } from "@/ai/flows/generate-artwork";
+import { refineArtPrompt } from "@/ai/flows/refine-prompt";
 import { searchPexels, PexelsPhoto } from "@/lib/pexels";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function CreatePage() {
   const { user } = useAuth();
@@ -21,6 +23,7 @@ export default function CreatePage() {
 
   const [aiPrompt, setAiPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>("");
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
 
@@ -32,6 +35,20 @@ export default function CreatePage() {
     router.push("/login");
     return null;
   }
+
+  const handleRefine = async () => {
+    if (!aiPrompt) return;
+    setIsRefining(true);
+    try {
+      const result = await refineArtPrompt({ prompt: aiPrompt });
+      setAiPrompt(result.refinedPrompt);
+      toast({ title: "Prompt Refined!", description: "AI has enhanced your vision." });
+    } catch (error) {
+      toast({ title: "Refinement failed", variant: "destructive" });
+    } finally {
+      setIsRefining(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (!aiPrompt) return;
@@ -50,7 +67,7 @@ export default function CreatePage() {
     } catch (error) {
       toast({ 
         title: "Generation failed", 
-        description: "The AI engine encountered an error. Please try again.", 
+        description: "The AI engine encountered an error. Please check your API keys.", 
         variant: "destructive" 
       });
     } finally {
@@ -105,17 +122,29 @@ export default function CreatePage() {
                   <Sparkles className="text-accent" /> AI Canvas
                 </CardTitle>
                 <CardDescription>
-                  Powered by Replicate SDXL, BLIP, and Cloudinary.
+                  Powered by SDXL, BLIP, and Cloudinary.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
-                <div className="space-y-2">
-                  <textarea
-                    placeholder="Describe your vision... e.g. 'A cybernetic dragon in an oil painting style'"
-                    className="w-full min-h-[150px] p-4 rounded-2xl border border-primary/20 bg-background focus:ring-2 focus:ring-accent outline-none resize-none transition-all"
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                  />
+                <div className="space-y-4">
+                  <div className="relative">
+                    <Textarea
+                      placeholder="Describe your vision... e.g. 'A cybernetic dragon in an oil painting style'"
+                      className="w-full min-h-[180px] p-4 rounded-2xl border border-primary/20 bg-background focus:ring-2 focus:ring-accent outline-none resize-none transition-all"
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                    />
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={handleRefine}
+                      disabled={isRefining || !aiPrompt || isGenerating}
+                      className="absolute bottom-4 right-4 rounded-full gap-2 shadow-sm"
+                    >
+                      {isRefining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
+                      Refine with AI
+                    </Button>
+                  </div>
                 </div>
                 <Button 
                   onClick={handleGenerate}
