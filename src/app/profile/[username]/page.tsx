@@ -3,12 +3,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getDocs, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -22,6 +22,7 @@ import { Bar, BarChart, XAxis, YAxis } from "recharts";
 export default function ProfilePage({ params }: { params: { username: string } }) {
   const { user: currentUser, profile: currentProfile } = useAuth();
   const { toast } = useToast();
+  const db = useFirestore();
   const [targetProfile, setTargetProfile] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,6 +31,8 @@ export default function ProfilePage({ params }: { params: { username: string } }
   const isOwnProfile = currentProfile?.username === params.username;
 
   useEffect(() => {
+    if (!db) return;
+    
     async function fetchProfile() {
       setLoading(true);
       try {
@@ -56,14 +59,14 @@ export default function ProfilePage({ params }: { params: { username: string } }
           return () => unsubscribe();
         }
       } catch (error) {
-        console.error("Error:", error);
+        console.error("Error fetching profile:", error);
       } finally {
         setLoading(false);
       }
     }
     
     fetchProfile();
-  }, [params.username]);
+  }, [params.username, db]);
 
   const activityData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -104,7 +107,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
           <div className="relative">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary border-4 border-white overflow-hidden shadow-xl flex items-center justify-center">
                {targetProfile?.profileImage ? (
-                 <Image src={targetProfile.profileImage} alt="Avatar" fill className="object-cover" />
+                 <Image src={targetProfile.profileImage} alt="Avatar" width={160} height={160} className="object-cover" />
                ) : (
                  <UserIcon size={64} className="text-white/50" />
                )}
