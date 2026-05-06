@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,9 +7,12 @@ import { ArtworkCard } from "@/components/ArtworkCard";
 import { Search, X, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useFirestore } from "@/firebase";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function ExplorePage() {
+  const db = useFirestore();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [artworks, setArtworks] = useState<any[]>([]);
@@ -19,6 +21,7 @@ export default function ExplorePage() {
   const tags = ["Abstract", "Landscape", "Digital", "Oil", "Space", "Minimalist", "Neon", "Portrait"];
 
   useEffect(() => {
+    if (!db) return;
     const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const posts = snapshot.docs.map(doc => ({
@@ -27,10 +30,17 @@ export default function ExplorePage() {
       }));
       setArtworks(posts);
       setLoading(false);
+    }, async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: 'posts',
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, []);
+  }, [db]);
 
   const filteredArtworks = artworks.filter(art => {
     const matchesSearch = 

@@ -1,10 +1,10 @@
-
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth as useAuthContext } from "@/context/AuthContext";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,10 +15,12 @@ import { suggestArtworkTags } from "@/ai/flows/ai-artwork-tag-suggestion";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 function UploadContent() {
-  const { user, profile } = useAuth();
+  const { user, profile } = useAuthContext();
+  const db = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
@@ -78,32 +80,40 @@ function UploadContent() {
   };
 
   const handleUpload = async () => {
-    if (!preview || !title) {
+    if (!preview || !title || !db) {
        toast({ title: "Incomplete details", description: "Title and Image are required.", variant: "destructive" });
        return;
     }
     
     setIsUploading(true);
-    try {
-      // Create post in Firestore
-      await addDoc(collection(db, "posts"), {
-        userId: user.uid,
-        username: profile?.username || "anonymous",
-        imageUrl: preview, // In a real app, you'd upload to Firebase Storage first
-        title,
-        description,
-        tags,
-        likesCount: 0,
-        createdAt: serverTimestamp(),
-      });
+    const postData = {
+      userId: user.uid,
+      username: profile?.username || "anonymous",
+      imageUrl: preview,
+      title,
+      description,
+      tags,
+      likesCount: 0,
+      createdAt: serverTimestamp(),
+    };
 
-      toast({ title: "Published!", description: "Your artwork is now live!" });
-      router.push("/explore");
-    } catch (error: any) {
-      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
-    } finally {
-      setIsUploading(false);
-    }
+    const postsRef = collection(db, "posts");
+    addDoc(postsRef, postData)
+      .then(() => {
+        toast({ title: "Published!", description: "Your artwork is now live!" });
+        router.push("/explore");
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: postsRef.path,
+          operation: 'create',
+          requestResourceData: postData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsUploading(false);
+      });
   };
 
   return (

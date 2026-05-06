@@ -1,25 +1,26 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { doc, getDoc, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useAuth } from "@/context/AuthContext";
+import { useAuth, useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft, MessageCircle, Heart, Share2, Loader2, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function ArtworkDetailPage() {
   const { postId } = useParams();
   const router = useRouter();
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
+  const db = useFirestore();
   const { toast } = useToast();
   
   const [post, setPost] = useState<any>(null);
@@ -29,50 +30,70 @@ export default function ArtworkDetailPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (!postId) return;
+    if (!postId || !db) return;
 
     const fetchPost = async () => {
       const docRef = doc(db, "posts", postId as string);
-      const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setPost({ id: docSnap.id, ...docSnap.data() });
-      } else {
-        toast({ title: "Not found", description: "Artwork does not exist.", variant: "destructive" });
-        router.push("/explore");
+      try {
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setPost({ id: docSnap.id, ...docSnap.data() });
+        } else {
+          toast({ title: "Not found", description: "Artwork does not exist.", variant: "destructive" });
+          router.push("/explore");
+        }
+      } catch (err) {
+        console.error("Error fetching post:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     fetchPost();
 
-    // Real-time comments
     const commentsRef = collection(db, "posts", postId as string, "comments");
     const q = query(commentsRef, orderBy("createdAt", "desc"));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setComments(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    }, async (error) => {
+      const permissionError = new FirestorePermissionError({
+        path: commentsRef.path,
+        operation: 'list',
+      });
+      errorEmitter.emit('permission-error', permissionError);
     });
 
     return () => unsubscribe();
-  }, [postId, router, toast]);
+  }, [postId, router, toast, db]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !newComment.trim()) return;
+    if (!user || !newComment.trim() || !db) return;
 
     setIsSubmitting(true);
-    try {
-      await addDoc(collection(db, "posts", postId as string, "comments"), {
-        userId: user.uid,
-        username: profile?.username || "Anonymous",
-        text: newComment,
-        createdAt: serverTimestamp(),
+    const commentData = {
+      userId: user.uid,
+      username: user.displayName || "Anonymous",
+      text: newComment,
+      createdAt: serverTimestamp(),
+    };
+
+    const commentRef = collection(db, "posts", postId as string, "comments");
+    addDoc(commentRef, commentData)
+      .then(() => {
+        setNewComment("");
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: commentRef.path,
+          operation: 'create',
+          requestResourceData: commentData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsSubmitting(false);
       });
-      setNewComment("");
-    } catch (error) {
-      toast({ title: "Failed to comment", variant: "destructive" });
-    } finally {
-      setIsSubmitting(false);
-    }
   };
 
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>;

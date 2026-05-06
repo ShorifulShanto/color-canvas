@@ -1,14 +1,16 @@
+
 "use client";
 
 import Link from "next/link";
-import { useAuth } from "@/context/AuthContext";
-import { auth } from "@/lib/firebase";
+import { useAuth as useAuthContext } from "@/context/AuthContext";
+import { useAuth } from "@/firebase";
 import { signOut } from "firebase/auth";
 import { Button } from "@/components/ui/button";
 import { Palette, LogOut, User, Upload, Search, Home, Wand2 } from "lucide-react";
 
 export function Navbar() {
-  const { user, profile } = useAuth();
+  const { user, profile } = useAuthContext();
+  const auth = useAuth();
 
   const handleLogout = async () => {
     try {
