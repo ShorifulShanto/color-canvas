@@ -41,7 +41,7 @@ export default function Home() {
           <h1 className="font-headline font-bold text-6xl md:text-8xl tracking-tight leading-tight">
             Color<span className="text-accent">Canvas.</span>
           </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-2xl mx-auto font-medium">
+          <p className="text-xl md:text-2xl text-[#FFD6A6] max-w-2xl mx-auto font-medium">
             A minimal creative studio to generate AI art, discover inspiration, and share your vision with the world.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
