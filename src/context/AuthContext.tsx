@@ -3,7 +3,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import { User } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useUser, useFirestore } from '@/firebase';
 
 interface UserProfile {
@@ -33,38 +33,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [profileLoading, setProfileLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchProfile() {
-      if (user) {
-        setProfileLoading(true);
-        try {
-          const docRef = doc(db, 'users', user.uid);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists()) {
-            setProfile(docSnap.data() as UserProfile);
-          } else {
-            // Self-healing for users without profiles (e.g., initial Google Login)
-            const newProfile = {
-              username: user.displayName?.toLowerCase().replace(/\s+/g, '_') || `user_${user.uid.slice(0, 5)}`,
-              email: user.email || "",
-              profileImage: user.photoURL || "",
-              bio: "New creator on ColorCanvas!",
-              createdAt: serverTimestamp(),
-            };
-            await setDoc(docRef, newProfile);
-            setProfile(newProfile as unknown as UserProfile);
-          }
-        } catch (error) {
-          console.error("AuthContext fetchProfile error:", error);
-        } finally {
-          setProfileLoading(false);
-        }
-      } else {
-        setProfile(null);
-        setProfileLoading(false);
-      }
+    if (!user || !db) {
+      setProfile(null);
+      setProfileLoading(false);
+      return;
     }
-    fetchProfile();
+
+    setProfileLoading(true);
+    const docRef = doc(db, 'users', user.uid);
+    
+    // Use onSnapshot for real-time profile updates across the entire app
+    const unsubscribe = onSnapshot(docRef, async (docSnap) => {
+      if (docSnap.exists()) {
+        setProfile(docSnap.data() as UserProfile);
+        setProfileLoading(false);
+      } else {
+        // Self-healing for missing profiles
+        const newProfile = {
+          username: user.displayName?.toLowerCase().replace(/\s+/g, '_') || `user_${user.uid.slice(0, 5)}`,
+          email: user.email || "",
+          profileImage: user.photoURL || "",
+          bio: "New creator on ColorCanvas!",
+          createdAt: serverTimestamp(),
+        };
+        await setDoc(docRef, newProfile);
+        // Snapshot will trigger again automatically
+      }
+    }, (error) => {
+      console.error("AuthContext Snapshot error:", error);
+      setProfileLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user, db]);
 
   const value = useMemo(() => ({
