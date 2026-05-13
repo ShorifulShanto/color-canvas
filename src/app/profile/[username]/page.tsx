@@ -6,9 +6,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3 } from "lucide-react";
+import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, onSnapshot, orderBy, doc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, orderBy } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -102,6 +102,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
 
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
+      {/* Profile Header */}
       <div className="bg-white/60 backdrop-blur-md rounded-3xl p-8 border shadow-sm space-y-8">
         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
           <div className="relative">
@@ -157,16 +158,23 @@ export default function ProfilePage({ params }: { params: { username: string } }
       <div className="grid lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           <Tabs defaultValue="artworks" className="w-full space-y-8">
-            <TabsList className="bg-white/80 p-1 rounded-full h-12 shadow-sm border">
-              <TabsTrigger value="artworks" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-                <Grid size={18} /> Gallery
-              </TabsTrigger>
-              <TabsTrigger value="liked" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-                <Heart size={18} /> Liked
-              </TabsTrigger>
-            </TabsList>
+            <div className="flex items-center justify-between">
+              <TabsList className="bg-white/80 p-1 rounded-full h-12 shadow-sm border">
+                <TabsTrigger value="artworks" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
+                  <Grid size={18} /> My Art
+                </TabsTrigger>
+                <TabsTrigger value="liked" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
+                  <Heart size={18} /> Liked
+                </TabsTrigger>
+              </TabsList>
+            </div>
             
-            <TabsContent value="artworks">
+            <TabsContent value="artworks" className="space-y-8">
+              <div className="flex items-center gap-2 mb-4">
+                <Sparkles size={20} className="text-accent" />
+                <h2 className="font-headline font-bold text-2xl">My Masterpieces</h2>
+              </div>
+              
               <div className="artwork-grid">
                 {userPosts.map(art => (
                   <ArtworkCard 
@@ -180,24 +188,37 @@ export default function ProfilePage({ params }: { params: { username: string } }
                   />
                 ))}
                 {userPosts.length === 0 && (
-                  <div className="col-span-full py-20 text-center text-muted-foreground italic">
-                    No artworks shared yet.
+                  <div className="col-span-full py-20 text-center space-y-4">
+                    <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+                      <Grid size={32} />
+                    </div>
+                    <div className="italic text-muted-foreground">
+                      <p className="text-lg font-medium">No artworks shared yet.</p>
+                      <p className="text-sm">Start your next vision in the AI Studio and share it with the world!</p>
+                    </div>
                   </div>
                 )}
               </div>
             </TabsContent>
 
             <TabsContent value="liked">
-              <div className="py-20 text-center text-muted-foreground italic">
-                Your liked works will appear here.
+              <div className="py-20 text-center space-y-4">
+                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+                  <Heart size={32} />
+                </div>
+                <div className="italic text-muted-foreground">
+                  <p className="text-lg font-medium">No liked works yet.</p>
+                  <p className="text-sm">Explore the discovery portal and spread some creative love!</p>
+                </div>
               </div>
             </TabsContent>
           </Tabs>
         </div>
 
+        {/* Sidebar Activity */}
         <div className="space-y-8">
           <div className="bg-white p-6 rounded-3xl border shadow-sm">
-            <h3 className="font-bold mb-4 flex items-center gap-2">
+            <h3 className="font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
               <BarChart3 size={18} className="text-accent" /> Creation Activity
             </h3>
             <div className="h-[200px] w-full">
@@ -210,7 +231,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
                   </BarChart>
                 </ChartContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-sm italic">
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm italic border-2 border-dashed rounded-2xl">
                   Not enough activity data.
                 </div>
               )}
