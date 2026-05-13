@@ -11,6 +11,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getDocs, onSnapshot, orderBy } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 import {
   ChartConfig,
   ChartContainer,
@@ -29,16 +31,19 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   
-  const isOwnProfile = currentProfile?.username === username;
+  const isOwnProfile = currentProfile?.username === username?.toLowerCase();
 
   useEffect(() => {
     if (!db || !username) return;
     
-    async function fetchProfile() {
+    let unsubscribePosts: (() => void) | undefined;
+
+    async function fetchProfileAndSubscribe() {
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        const q = query(usersRef, where("username", "==", username));
+        // Ensure case-insensitive username lookup
+        const q = query(usersRef, where("username", "==", username.toLowerCase()));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
@@ -53,11 +58,17 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             orderBy("createdAt", "desc")
           );
           
-          const unsubscribe = onSnapshot(postsQuery, (snapshot) => {
+          unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
             setUserPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+          }, (error) => {
+            const permissionError = new FirestorePermissionError({
+              path: 'posts',
+              operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
           });
-          
-          return () => unsubscribe();
+        } else {
+          toast({ title: "User not found", variant: "destructive" });
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -66,14 +77,20 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       }
     }
     
-    fetchProfile();
-  }, [username, db]);
+    fetchProfileAndSubscribe();
+
+    return () => {
+      if (unsubscribePosts) unsubscribePosts();
+    };
+  }, [username, db, toast]);
 
   const activityData = useMemo(() => {
     const counts: Record<string, number> = {};
     userPosts.forEach(post => {
       if (!post.createdAt) return;
-      const date = post.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      // Handle both Firestore Timestamp and possible native Date
+      const dateObj = typeof post.createdAt.toDate === 'function' ? post.createdAt.toDate() : new Date(post.createdAt);
+      const date = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       counts[date] = (counts[date] || 0) + 1;
     });
     return Object.entries(counts).map(([date, count]) => ({ date, count })).slice(-7);
@@ -99,7 +116,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     count: { label: "Artworks", color: "hsl(var(--accent))" }
   } satisfies ChartConfig;
 
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-accent" /></div>;
+  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-accent" size={32} /></div>;
 
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
@@ -124,7 +141,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <div className="space-y-4 flex-grow">
             <div className="flex flex-wrap items-center gap-4 justify-between">
               <div>
-                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username}</h1>
+                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username || username}</h1>
                 <p className="text-muted-foreground flex items-center gap-1 mt-1">
                   <MapPin size={14} /> Creative Studio
                 </p>
@@ -181,7 +198,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                   <ArtworkCard 
                     key={art.id} 
                     id={art.id}
-                    imageURL={art.imageUrl}
+                    imageURL={art.imageUrl || art.imageURL}
                     title={art.title}
                     username={art.username}
                     likesCount={art.likesCount || 0}
