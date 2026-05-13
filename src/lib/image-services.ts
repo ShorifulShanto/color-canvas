@@ -12,10 +12,16 @@ function validateConfig() {
   const cloudSecret = process.env.CLOUDINARY_API_SECRET;
 
   if (!googleKey) {
-    throw new Error('GOOGLE_GENAI_API_KEY is missing. Please add it to your environment.');
+    throw new Error('GOOGLE_GENAI_API_KEY is missing in your environment configuration.');
   }
-  if (!cloudName || !cloudKey || !cloudSecret) {
-    throw new Error('Cloudinary configuration is incomplete. Please check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET.');
+  if (!cloudName) {
+    throw new Error('CLOUDINARY_CLOUD_NAME is missing. Check your .env file.');
+  }
+  if (!cloudKey) {
+    throw new Error('CLOUDINARY_API_KEY is missing. Check your .env file.');
+  }
+  if (!cloudSecret) {
+    throw new Error('CLOUDINARY_API_SECRET is missing. Check your .env file.');
   }
 
   // Configure Cloudinary
@@ -40,7 +46,7 @@ export async function generateWithImagen(prompt: string): Promise<string> {
     });
     
     if (!media || !media.url) {
-      throw new Error('AI Engine failed to generate image. The service might be temporarily unavailable.');
+      throw new Error('AI Engine failed to generate image. The service might be temporarily unavailable or the prompt was blocked by safety filters.');
     }
     
     return media.url;
@@ -86,7 +92,7 @@ export async function uploadToCloudinary(dataUri: string): Promise<string> {
     return result.secure_url;
   } catch (error: any) {
     console.error('Cloudinary Upload Internal Error:', error);
-    throw new Error(`Cloudinary transfer failed: ${error.message || 'Verify your Cloudinary credentials'}`);
+    throw new Error(`Cloudinary transfer failed: ${error.message || 'Check your Cloudinary credentials and network connection.'}`);
   }
 }
 
