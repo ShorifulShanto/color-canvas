@@ -42,12 +42,12 @@ export default function Home() {
             Color<span className="text-accent">Canvas.</span>
           </h1>
           <p className="text-xl md:text-2xl text-[#1D1616] max-w-2xl mx-auto font-medium">
-            A minimal creative studio to generate AI art, discover inspiration, and share your vision with the world.
+            A minimal creative studio to discover inspiration, and share your vision with the world.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link href={user ? "/create" : "/signup"}>
+            <Link href={user ? "/explore" : "/signup"}>
               <Button size="lg" className="bg-accent text-white hover:bg-accent/90 px-12 h-16 rounded-full shadow-2xl text-lg">
-                {user ? "Enter Studio" : "Join the Community"} <ArrowRight size={20} className="ml-2" />
+                {user ? "Explore Gallery" : "Join the Community"} <ArrowRight size={20} className="ml-2" />
               </Button>
             </Link>
           </div>
@@ -82,10 +82,10 @@ export default function Home() {
               <Palette size={300} />
            </div>
            <h2 className="font-headline font-bold text-4xl md:text-6xl max-w-3xl mx-auto">Ready to start your next masterpiece?</h2>
-           <p className="text-white/80 text-xl max-w-xl mx-auto">Use our AI canvas to render your wildest imaginations in seconds.</p>
-           <Link href={user ? "/create" : "/signup"} className="inline-block">
+           <p className="text-white/80 text-xl max-w-xl mx-auto">Share your creations and inspirations with a global audience.</p>
+           <Link href={user ? "/upload" : "/signup"} className="inline-block">
               <Button size="lg" variant="secondary" className="px-12 h-16 rounded-full text-lg font-bold">
-                {user ? "Start Creating Now" : "Get Started"}
+                {user ? "Upload Now" : "Get Started"}
               </Button>
            </Link>
         </div>

@@ -23,7 +23,8 @@ import { Bar, BarChart, XAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params);
-  const usernameParam = rawUsername?.toLowerCase();
+  // Important: Firebase UIDs are case-sensitive. Usernames are lowercase.
+  const usernameParam = rawUsername; 
   const { user: currentUser, profile: currentProfile } = useAuth();
   const { toast } = useToast();
   const db = useFirestore();
@@ -36,7 +37,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   // Robust check for own profile
   const isOwnProfile = useMemo(() => {
     if (!currentUser || !usernameParam) return false;
-    return currentProfile?.username?.toLowerCase() === usernameParam || currentUser.uid === usernameParam;
+    const lowerParam = usernameParam.toLowerCase();
+    const lowerOwnUsername = currentProfile?.username?.toLowerCase();
+    return lowerOwnUsername === lowerParam || currentUser.uid === usernameParam;
   }, [currentUser, currentProfile, usernameParam]);
 
   useEffect(() => {
@@ -48,21 +51,20 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        
-        // 1. Try to find by username (exact lowercase match)
-        const q = query(usersRef, where("username", "==", usernameParam));
-        const querySnapshot = await getDocs(q);
-        
         let profileDoc = null;
+
+        // 1. Try UID first (Preserve Case)
+        const docRef = doc(db, "users", usernameParam);
+        const docSnap = await getDoc(docRef);
         
-        if (!querySnapshot.empty) {
-          profileDoc = querySnapshot.docs[0];
+        if (docSnap.exists()) {
+          profileDoc = docSnap;
         } else {
-          // 2. Fallback: Check if the param is actually a User UID
-          const docRef = doc(db, "users", usernameParam);
-          const docSnap = await getDoc(docRef);
-          if (docSnap.exists()) {
-            profileDoc = docSnap;
+          // 2. Try Username (Lowercase lookup)
+          const q = query(usersRef, where("username", "==", usernameParam.toLowerCase()));
+          const querySnapshot = await getDocs(q);
+          if (!querySnapshot.empty) {
+            profileDoc = querySnapshot.docs[0];
           }
         }
 
@@ -71,7 +73,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           const profileData = { id: profileId, ...profileDoc.data() };
           setTargetProfile(profileData);
           
-          // Subscribe to posts for this user
+          // 3. Subscribe to posts for this user
           const postsRef = collection(db, "posts");
           const postsQuery = query(
             postsRef, 
@@ -172,7 +174,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <div className="space-y-4 flex-grow">
             <div className="flex flex-wrap items-center gap-4 justify-between">
               <div>
-                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username || usernameParam}</h1>
+                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username || "Artist"}</h1>
                 <p className="text-muted-foreground flex items-center gap-1 mt-1">
                   <MapPin size={14} /> Creative Studio
                 </p>
@@ -244,7 +246,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     </div>
                     <div className="italic text-muted-foreground">
                       <p className="text-lg font-medium">No artworks shared yet.</p>
-                      <p className="text-sm">Start your next vision in the AI Studio and share it with the world!</p>
+                      <p className="text-sm">Start your next vision and share it with the world!</p>
                     </div>
                   </div>
                 )}
