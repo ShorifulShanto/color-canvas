@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -23,19 +23,20 @@ import { Bar, BarChart, XAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params);
-  const username = rawUsername?.toLowerCase();
+  const usernameParam = rawUsername?.toLowerCase();
   const { user: currentUser, profile: currentProfile } = useAuth();
   const { toast } = useToast();
   const db = useFirestore();
+  
   const [targetProfile, setTargetProfile] = useState<any>(null);
   const [userPosts, setUserPosts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   
-  const isOwnProfile = currentProfile?.username === username;
+  const isOwnProfile = currentProfile?.username === usernameParam || currentUser?.uid === usernameParam;
 
   useEffect(() => {
-    if (!db || !username) return;
+    if (!db || !usernameParam) return;
     
     let unsubscribePosts: (() => void) | undefined;
 
@@ -43,25 +44,39 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        // Ensure we query with lowercase username to match database storage
-        const q = query(usersRef, where("username", "==", username));
+        
+        // 1. First, try to find by username
+        const q = query(usersRef, where("username", "==", usernameParam));
         const querySnapshot = await getDocs(q);
         
+        let profileDoc = null;
+        
         if (!querySnapshot.empty) {
-          const profileDoc = querySnapshot.docs[0];
-          const profileData = { id: profileDoc.id, ...profileDoc.data() };
+          profileDoc = querySnapshot.docs[0];
+        } else {
+          // 2. Fallback: Check if the param is actually a User UID
+          const docRef = doc(db, "users", usernameParam);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            profileDoc = docSnap;
+          }
+        }
+
+        if (profileDoc) {
+          const profileId = profileDoc.id;
+          const profileData = { id: profileId, ...profileDoc.data() };
           setTargetProfile(profileData);
           
+          // Subscribe to posts for this user
           const postsRef = collection(db, "posts");
-          // Fetch posts for this specific user
           const postsQuery = query(
             postsRef, 
-            where("userId", "==", profileDoc.id)
+            where("userId", "==", profileId)
           );
           
           unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Sort manually to avoid index requirements for initial prototype
+            // Manual sort for reliability
             const sortedPosts = posts.sort((a: any, b: any) => {
               const dateA = a.createdAt?.seconds || 0;
               const dateB = b.createdAt?.seconds || 0;
@@ -76,7 +91,11 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             errorEmitter.emit('permission-error', permissionError);
           });
         } else {
-          toast({ title: "User not found", description: "The artist you're looking for doesn't exist.", variant: "destructive" });
+          toast({ 
+            title: "Artist not found", 
+            description: "We couldn't locate this creator in our gallery.", 
+            variant: "destructive" 
+          });
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -90,7 +109,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     return () => {
       if (unsubscribePosts) unsubscribePosts();
     };
-  }, [username, db, toast]);
+  }, [usernameParam, db, toast]);
 
   const activityData = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -115,10 +134,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     });
   };
 
-  const handleEditProfile = () => {
-    toast({ title: "Coming Soon", description: "Profile editing will be available in the next update!" });
-  };
-
   const chartConfig = {
     count: { label: "Artworks", color: "hsl(var(--accent))" }
   } satisfies ChartConfig;
@@ -139,16 +154,16 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                )}
             </div>
             {isOwnProfile && (
-              <button onClick={handleEditProfile} className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg hover:scale-110 transition-transform">
+              <div className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg">
                 <Edit2 size={16} />
-              </button>
+              </div>
             )}
           </div>
           
           <div className="space-y-4 flex-grow">
             <div className="flex flex-wrap items-center gap-4 justify-between">
               <div>
-                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username || username}</h1>
+                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username || usernameParam}</h1>
                 <p className="text-muted-foreground flex items-center gap-1 mt-1">
                   <MapPin size={14} /> Creative Studio
                 </p>
@@ -156,7 +171,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               <div className="flex gap-2">
                 {isOwnProfile ? (
                   <>
-                    <Button onClick={handleEditProfile} variant="outline" className="rounded-full px-6">Edit Profile</Button>
+                    <Button variant="outline" className="rounded-full px-6">Edit Profile</Button>
                     <Button variant="ghost" size="icon" className="rounded-full">
                       <Settings size={20} />
                     </Button>
