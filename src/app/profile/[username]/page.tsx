@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, onSnapshot, doc, getDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot, doc, getDoc, orderBy } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -23,7 +23,6 @@ import { Bar, BarChart, XAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params);
-  // Important: Firebase UIDs are case-sensitive. Usernames are lowercase.
   const usernameParam = rawUsername; 
   const { user: currentUser, profile: currentProfile } = useAuth();
   const { toast } = useToast();
@@ -34,13 +33,10 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   
-  // Robust check for own profile
   const isOwnProfile = useMemo(() => {
-    if (!currentUser || !usernameParam) return false;
-    const lowerParam = usernameParam.toLowerCase();
-    const lowerOwnUsername = currentProfile?.username?.toLowerCase();
-    return lowerOwnUsername === lowerParam || currentUser.uid === usernameParam;
-  }, [currentUser, currentProfile, usernameParam]);
+    if (!currentUser || !targetProfile) return false;
+    return currentUser.uid === targetProfile.id;
+  }, [currentUser, targetProfile]);
 
   useEffect(() => {
     if (!db || !usernameParam) return;
@@ -51,51 +47,40 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        let profileDoc = null;
+        let profileData = null;
 
-        // 1. Try UID first (Preserve Case)
+        // 1. Try fetching by Document ID (UID) - Case Sensitive
         const docRef = doc(db, "users", usernameParam);
         const docSnap = await getDoc(docRef);
         
         if (docSnap.exists()) {
-          profileDoc = docSnap;
+          profileData = { id: docSnap.id, ...docSnap.data() };
         } else {
-          // 2. Try Username (Lowercase lookup)
+          // 2. Try fetching by Username Field - Lowercase
           const q = query(usersRef, where("username", "==", usernameParam.toLowerCase()));
           const querySnapshot = await getDocs(q);
           if (!querySnapshot.empty) {
-            profileDoc = querySnapshot.docs[0];
+            const profileDoc = querySnapshot.docs[0];
+            profileData = { id: profileDoc.id, ...profileDoc.data() };
           }
         }
 
-        if (profileDoc) {
-          const profileId = profileDoc.id;
-          const profileData = { id: profileId, ...profileDoc.data() };
+        if (profileData) {
           setTargetProfile(profileData);
           
-          // 3. Subscribe to posts for this user
+          // 3. Subscribe to posts for this specific user ID
           const postsRef = collection(db, "posts");
           const postsQuery = query(
             postsRef, 
-            where("userId", "==", profileId)
+            where("userId", "==", profileData.id),
+            orderBy("createdAt", "desc")
           );
           
           unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            
-            const getSortTime = (val: any) => {
-              if (!val) return Date.now();
-              if (typeof val.toMillis === 'function') return val.toMillis();
-              if (val.seconds) return val.seconds * 1000;
-              return new Date(val).getTime();
-            };
-
-            const sortedPosts = posts.sort((a: any, b: any) => {
-              return getSortTime(b.createdAt) - getSortTime(a.createdAt);
-            });
-            
-            setUserPosts(sortedPosts);
+            setUserPosts(posts);
           }, (error) => {
+            console.error("Posts subscription error:", error);
             const permissionError = new FirestorePermissionError({
               path: 'posts',
               operation: 'list',
@@ -165,7 +150,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                )}
             </div>
             {isOwnProfile && (
-              <div className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg">
+              <div className="absolute bottom-2 right-2 p-2 bg-accent text-white rounded-full shadow-lg cursor-pointer">
                 <Edit2 size={16} />
               </div>
             )}
@@ -246,7 +231,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     </div>
                     <div className="italic text-muted-foreground">
                       <p className="text-lg font-medium">No artworks shared yet.</p>
-                      <p className="text-sm">Start your next vision and share it with the world!</p>
+                      <p className="text-sm">Start your next vision in the Studio and share it with the world!</p>
                     </div>
                   </div>
                 )}
