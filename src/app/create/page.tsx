@@ -17,6 +17,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 
+export const maxDuration = 60; // Increase server action timeout for AI generation
+
 export default function CreatePage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -58,7 +60,7 @@ export default function CreatePage() {
     setGenerationStep("Initializing AI engine...");
     
     try {
-      setGenerationStep("Step 1: Generating pixels...");
+      setGenerationStep("Step 1: Rendering vision...");
       const result = await generateArtwork({ prompt: aiPrompt });
       setGeneratedImage(result.imageUrl);
       setGenerationStep("Masterpiece ready!");
@@ -70,7 +72,7 @@ export default function CreatePage() {
       console.error("Generation Error:", error);
       toast({ 
         title: "Generation failed", 
-        description: error.message || "An unexpected error occurred. Please verify your API keys.", 
+        description: error.message || "The AI engine timed out. Please try a simpler prompt.", 
         variant: "destructive" 
       });
     } finally {
@@ -171,8 +173,8 @@ export default function CreatePage() {
                 </Button>
 
                 <div className="pt-4 flex items-center justify-center gap-4 opacity-60">
-                  <Badge variant="outline">SDXL 1.0</Badge>
-                  <Badge variant="outline">Upscaled</Badge>
+                  <Badge variant="outline">Imagen 4</Badge>
+                  <Badge variant="outline">HQ Rendering</Badge>
                   <Badge variant="outline">Cloudinary</Badge>
                 </div>
               </CardContent>

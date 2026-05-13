@@ -83,9 +83,9 @@ export default function Home() {
            </div>
            <h2 className="font-headline font-bold text-4xl md:text-6xl max-w-3xl mx-auto">Ready to start your next masterpiece?</h2>
            <p className="text-white/80 text-xl max-w-xl mx-auto">Use our AI canvas to render your wildest imaginations in seconds.</p>
-           <Link href="/create" className="inline-block">
+           <Link href={user ? "/create" : "/signup"} className="inline-block">
               <Button size="lg" variant="secondary" className="px-12 h-16 rounded-full text-lg font-bold">
-                Start Creating Now
+                {user ? "Start Creating Now" : "Get Started"}
               </Button>
            </Link>
         </div>
