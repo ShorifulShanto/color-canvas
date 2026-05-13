@@ -22,7 +22,8 @@ import {
 import { Bar, BarChart, XAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
-  const { username } = use(params);
+  const { username: rawUsername } = use(params);
+  const username = rawUsername?.toLowerCase();
   const { user: currentUser, profile: currentProfile } = useAuth();
   const { toast } = useToast();
   const db = useFirestore();
@@ -31,7 +32,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   
-  const isOwnProfile = currentProfile?.username === username?.toLowerCase();
+  const isOwnProfile = currentProfile?.username === username;
 
   useEffect(() => {
     if (!db || !username) return;
@@ -42,8 +43,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        // Use case-insensitive username lookup
-        const q = query(usersRef, where("username", "==", username.toLowerCase()));
+        // Ensure we query with lowercase username to match database storage
+        const q = query(usersRef, where("username", "==", username));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
@@ -52,7 +53,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           setTargetProfile(profileData);
           
           const postsRef = collection(db, "posts");
-          // Simplified query to avoid index requirements for initial prototype
+          // Fetch posts for this specific user
           const postsQuery = query(
             postsRef, 
             where("userId", "==", profileDoc.id)
@@ -60,7 +61,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           
           unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Sort manually to ensure consistent UI without requiring a composite index
+            // Sort manually to avoid index requirements for initial prototype
             const sortedPosts = posts.sort((a: any, b: any) => {
               const dateA = a.createdAt?.seconds || 0;
               const dateB = b.createdAt?.seconds || 0;
@@ -75,7 +76,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             errorEmitter.emit('permission-error', permissionError);
           });
         } else {
-          toast({ title: "User not found", variant: "destructive" });
+          toast({ title: "User not found", description: "The artist you're looking for doesn't exist.", variant: "destructive" });
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
