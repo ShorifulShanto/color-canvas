@@ -1,4 +1,3 @@
-
 import { v2 as cloudinary } from 'cloudinary';
 import Replicate from 'replicate';
 
@@ -19,9 +18,9 @@ export async function generateWithSDXL(prompt: string): Promise<string> {
     throw new Error('REPLICATE_API_TOKEN is not configured');
   }
 
-  // Using SDXL 1.0
+  // Using a known stable version of SDXL 1.0
   const output: any = await replicate.run(
-    "stability-ai/sdxl:7762fd0e23040d01c6a1529196238383e207908c67a36f784e27f47498322e70",
+    "stability-ai/sdxl:39ed52f2a78e934b3ba6e10998ad2c748645b2421a7d9591adca1d149f783028",
     {
       input: {
         prompt: prompt,
