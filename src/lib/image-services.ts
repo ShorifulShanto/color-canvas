@@ -1,12 +1,6 @@
+
 import { v2 as cloudinary } from 'cloudinary';
 import { ai } from '@/ai/genkit';
-
-// Initialize Cloudinary
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
 
 /**
  * Generates a high-quality artistic image using Imagen 4 via Genkit.
@@ -43,17 +37,35 @@ export async function captionImage(imageUrl: string): Promise<string> {
  * Stores the generated image permanently in Cloudinary.
  */
 export async function uploadToCloudinary(dataUri: string): Promise<string> {
-  if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    throw new Error('Cloudinary storage is not fully configured');
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  const apiKey = process.env.CLOUDINARY_API_KEY;
+  const apiSecret = process.env.CLOUDINARY_API_SECRET;
+
+  if (!cloudName || !apiKey || !apiSecret) {
+    throw new Error('Cloudinary is not fully configured. Please ensure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET are set in your environment.');
   }
 
-  const result = await cloudinary.uploader.upload(dataUri, {
-    folder: 'colorcanvas',
+  // Re-configure to ensure context in serverless functions
+  cloudinary.config({
+    cloud_name: cloudName,
+    api_key: apiKey,
+    api_secret: apiSecret,
+    secure: true,
   });
-  return result.secure_url;
+
+  try {
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: 'colorcanvas',
+      resource_type: 'auto',
+    });
+    return result.secure_url;
+  } catch (error: any) {
+    console.error('Cloudinary Upload Internal Error:', error);
+    throw new Error(`Cloudinary transfer failed: ${error.message || 'Unknown error during upload'}`);
+  }
 }
 
-// Keeping these for interface compatibility with the flow, but Imagen 4 handles quality internally
+// Keeping these for interface compatibility with the flow
 export async function upscaleImage(imageUrl: string): Promise<string> {
   return imageUrl; 
 }

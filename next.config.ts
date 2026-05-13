@@ -1,3 +1,4 @@
+
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
@@ -41,6 +42,12 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  // Increase body size limit for large image uploads via Server Actions
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '10mb',
+    },
   },
 };
 

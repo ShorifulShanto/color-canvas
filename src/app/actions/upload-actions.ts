@@ -1,3 +1,4 @@
+
 'use server';
 
 import { uploadToCloudinary } from '@/lib/image-services';
@@ -10,8 +11,9 @@ export async function uploadImageAction(dataUri: string): Promise<string> {
   try {
     const cloudinaryUrl = await uploadToCloudinary(dataUri);
     return cloudinaryUrl;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Cloudinary Action Error:', error);
-    throw new Error('Failed to transfer image to Cloudinary storage.');
+    // Propagate the descriptive error message
+    throw new Error(error.message || 'Failed to transfer image to Cloudinary storage.');
   }
 }
