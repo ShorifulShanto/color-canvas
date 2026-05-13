@@ -76,12 +76,19 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           
           unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            // Manual sort for reliability
+            
+            // Robust sorting for newly created documents (pending server timestamps)
+            const getSortTime = (val: any) => {
+              if (!val) return Date.now(); // Pending write: show at top
+              if (typeof val.toMillis === 'function') return val.toMillis();
+              if (val.seconds) return val.seconds * 1000;
+              return new Date(val).getTime();
+            };
+
             const sortedPosts = posts.sort((a: any, b: any) => {
-              const dateA = a.createdAt?.seconds || 0;
-              const dateB = b.createdAt?.seconds || 0;
-              return dateB - dateA;
+              return getSortTime(b.createdAt) - getSortTime(a.createdAt);
             });
+            
             setUserPosts(sortedPosts);
           }, (error) => {
             const permissionError = new FirestorePermissionError({
@@ -147,8 +154,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
           <div className="relative">
             <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary border-4 border-white overflow-hidden shadow-xl flex items-center justify-center">
-               {targetProfile?.profileImage ? (
-                 <Image src={targetProfile.profileImage} alt="Avatar" width={160} height={160} className="object-cover" />
+               {(targetProfile?.profileImage || targetProfile?.profileImageUrl) ? (
+                 <Image src={targetProfile.profileImage || targetProfile.profileImageUrl} alt="Avatar" width={160} height={160} className="object-cover" />
                ) : (
                  <UserIcon size={64} className="text-white/50" />
                )}

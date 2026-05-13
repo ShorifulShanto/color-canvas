@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -109,7 +110,7 @@ export default function ArtworkDetailPage() {
         <div className="lg:col-span-2 space-y-6">
           <div className="relative aspect-[4/5] w-full rounded-3xl overflow-hidden shadow-2xl border bg-white">
             <Image 
-              src={post.imageUrl} 
+              src={post.imageUrl || post.imageURL} 
               alt={post.title} 
               fill 
               className="object-contain" 

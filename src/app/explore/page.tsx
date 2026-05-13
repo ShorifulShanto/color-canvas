@@ -189,7 +189,7 @@ export default function ExplorePage() {
                 <ArtworkCard 
                   key={art.id} 
                   id={art.id}
-                  imageURL={art.imageUrl}
+                  imageURL={art.imageUrl || art.imageURL}
                   title={art.title}
                   username={art.username}
                   likesCount={art.likesCount || 0}
