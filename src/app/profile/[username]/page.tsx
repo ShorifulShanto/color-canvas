@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, use } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,8 @@ import {
 } from "@/components/ui/chart";
 import { Bar, BarChart, XAxis, YAxis } from "recharts";
 
-export default function ProfilePage({ params }: { params: { username: string } }) {
+export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
+  const { username } = use(params);
   const { user: currentUser, profile: currentProfile } = useAuth();
   const { toast } = useToast();
   const db = useFirestore();
@@ -28,16 +29,16 @@ export default function ProfilePage({ params }: { params: { username: string } }
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   
-  const isOwnProfile = currentProfile?.username === params.username;
+  const isOwnProfile = currentProfile?.username === username;
 
   useEffect(() => {
-    if (!db) return;
+    if (!db || !username) return;
     
     async function fetchProfile() {
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        const q = query(usersRef, where("username", "==", params.username));
+        const q = query(usersRef, where("username", "==", username));
         const querySnapshot = await getDocs(q);
         
         if (!querySnapshot.empty) {
@@ -66,7 +67,7 @@ export default function ProfilePage({ params }: { params: { username: string } }
     }
     
     fetchProfile();
-  }, [params.username, db]);
+  }, [username, db]);
 
   const activityData = useMemo(() => {
     const counts: Record<string, number> = {};
