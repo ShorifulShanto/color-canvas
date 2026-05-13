@@ -37,24 +37,30 @@ function UploadContent() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Handle source parameter from AI generation or search
   useEffect(() => {
     const sourceUrl = searchParams.get('source');
     if (sourceUrl) {
       setPreview(decodeURIComponent(sourceUrl));
-      toast({ title: "Inspiration loaded!", description: "You can now finalize your inspired piece." });
     }
-  }, [searchParams, toast]);
+  }, [searchParams]);
+
+  // Handle authentication redirect correctly inside useEffect
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+    }
+  }, [user, router]);
 
   if (!user) {
-    router.push("/login");
     return null;
   }
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.size > 5 * 1024 * 1024) {
-        toast({ title: "File too large", description: "Please upload an image under 5MB.", variant: "destructive" });
+      if (selectedFile.size > 10 * 1024 * 1024) { // Sync with bodySizeLimit in next.config.ts
+        toast({ title: "File too large", description: "Please upload an image under 10MB.", variant: "destructive" });
         return;
       }
       setFile(selectedFile);
