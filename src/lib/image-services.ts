@@ -1,5 +1,5 @@
 import { v2 as cloudinary } from 'cloudinary';
-import Replicate from 'replicate';
+import { ai } from '@/ai/genkit';
 
 // Initialize Cloudinary
 cloudinary.config({
@@ -8,70 +8,52 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// Initialize Replicate
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
-});
-
-export async function generateWithSDXL(prompt: string): Promise<string> {
-  if (!process.env.REPLICATE_API_TOKEN) {
-    throw new Error('REPLICATE_API_TOKEN is not configured');
-  }
-
-  // Using a known stable version of SDXL 1.0
-  const output: any = await replicate.run(
-    "stability-ai/sdxl:39ed52f2a78e934b3ba6e10998ad2c748645b2421a7d9591adca1d149f783028",
-    {
-      input: {
-        prompt: prompt,
-        scheduler: "K_EULER",
-        guidance_scale: 7.5,
-        num_inference_steps: 50,
-      }
-    }
-  );
+/**
+ * Generates a high-quality artistic image using Imagen 4 via Genkit.
+ */
+export async function generateWithImagen(prompt: string): Promise<string> {
+  const { media } = await ai.generate({
+    model: 'googleai/imagen-4.0-fast-generate-001',
+    prompt: `A professional artistic masterpiece: ${prompt}. Cinematic lighting, highly detailed, 4k resolution, trending on ArtStation.`,
+  });
   
-  if (!output || !output[0]) {
-    throw new Error('Model failed to generate image');
+  if (!media || !media.url) {
+    throw new Error('AI Engine failed to generate image. Please check your service quotas.');
   }
   
-  return output[0];
+  return media.url;
 }
 
-export async function upscaleImage(imageUrl: string): Promise<string> {
-  const output: any = await replicate.run(
-    "nightmare-ai/real-esrgan:42fed1c4974146d7d2411293962d14456e45f26145a9881f51040a1128f3310f",
-    {
-      input: {
-        image: imageUrl,
-        upscale: 2,
-        face_enhance: true
-      }
-    }
-  );
-  return output;
-}
-
+/**
+ * Generates an artistic caption for an image using Gemini 2.5 Flash.
+ */
 export async function captionImage(imageUrl: string): Promise<string> {
-  const output: any = await replicate.run(
-    "salesforce/blip:2e1eb24119a0da292705774a8710323910c8ff0d64e9a031e4f4949a2fa71624",
-    {
-      input: {
-        image: imageUrl,
-        task: "image_captioning"
-      }
-    }
-  );
-  return output;
+  const { text } = await ai.generate({
+    model: 'googleai/gemini-2.5-flash',
+    prompt: [
+      { media: { url: imageUrl, contentType: 'image/png' } },
+      { text: 'Describe this artwork in a few poetic and evocative words suitable for a high-end art gallery caption.' }
+    ]
+  });
+  
+  return text || "An ethereal vision of creative expression.";
 }
 
-export async function uploadToCloudinary(fileUrl: string): Promise<string> {
+/**
+ * Stores the generated image permanently in Cloudinary.
+ */
+export async function uploadToCloudinary(dataUri: string): Promise<string> {
   if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-    throw new Error('Cloudinary is not configured');
+    throw new Error('Cloudinary storage is not fully configured');
   }
 
-  const result = await cloudinary.uploader.upload(fileUrl, {
+  const result = await cloudinary.uploader.upload(dataUri, {
     folder: 'colorcanvas',
   });
   return result.secure_url;
+}
+
+// Keeping these for interface compatibility with the flow, but Imagen 4 handles quality internally
+export async function upscaleImage(imageUrl: string): Promise<string> {
+  return imageUrl; 
 }

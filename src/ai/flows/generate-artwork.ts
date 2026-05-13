@@ -1,14 +1,13 @@
-
 'use server';
 /**
- * @fileOverview Enhanced AI Artwork Generation Flow using Replicate and Cloudinary.
+ * @fileOverview Enhanced AI Artwork Generation Flow using Genkit Imagen 4 and Cloudinary.
  *
- * - generateArtwork - A function that generates, upscales, captions, and stores artwork.
+ * - generateArtwork - A function that generates, captions, and stores artwork.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { generateWithSDXL, upscaleImage, captionImage, uploadToCloudinary } from '@/lib/image-services';
+import { generateWithImagen, captionImage, uploadToCloudinary } from '@/lib/image-services';
 
 const GenerateArtworkInputSchema = z.object({
   prompt: z.string().describe('The descriptive prompt for the artwork.'),
@@ -32,17 +31,14 @@ const generateArtworkFlow = ai.defineFlow(
     outputSchema: GenerateArtworkOutputSchema,
   },
   async (input) => {
-    // 1. Generate via Replicate SDXL
-    const rawImageUrl = await generateWithSDXL(input.prompt);
+    // 1. Generate via Imagen 4 (Fast)
+    const dataUri = await generateWithImagen(input.prompt);
     
-    // 2. Upscale for higher quality
-    const upscaledUrl = await upscaleImage(rawImageUrl);
+    // 2. Generate artistic caption using Gemini
+    const caption = await captionImage(dataUri);
     
-    // 3. Generate caption using BLIP
-    const caption = await captionImage(upscaledUrl);
-    
-    // 4. Store permanently in Cloudinary
-    const finalCloudinaryUrl = await uploadToCloudinary(upscaledUrl);
+    // 3. Store permanently in Cloudinary
+    const finalCloudinaryUrl = await uploadToCloudinary(dataUri);
 
     return {
       imageUrl: finalCloudinaryUrl,
