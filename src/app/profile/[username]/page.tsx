@@ -33,7 +33,11 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   const [loading, setLoading] = useState(true);
   const [isFollowing, setIsFollowing] = useState(false);
   
-  const isOwnProfile = currentProfile?.username === usernameParam || currentUser?.uid === usernameParam;
+  // Robust check for own profile
+  const isOwnProfile = useMemo(() => {
+    if (!currentUser || !usernameParam) return false;
+    return currentProfile?.username?.toLowerCase() === usernameParam || currentUser.uid === usernameParam;
+  }, [currentUser, currentProfile, usernameParam]);
 
   useEffect(() => {
     if (!db || !usernameParam) return;
@@ -45,7 +49,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       try {
         const usersRef = collection(db, "users");
         
-        // 1. First, try to find by username
+        // 1. Try to find by username (exact lowercase match)
         const q = query(usersRef, where("username", "==", usernameParam));
         const querySnapshot = await getDocs(q);
         
@@ -77,9 +81,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
             const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             
-            // Robust sorting for newly created documents (pending server timestamps)
             const getSortTime = (val: any) => {
-              if (!val) return Date.now(); // Pending write: show at top
+              if (!val) return Date.now();
               if (typeof val.toMillis === 'function') return val.toMillis();
               if (val.seconds) return val.seconds * 1000;
               return new Date(val).getTime();
@@ -149,7 +152,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
-      {/* Profile Header */}
       <div className="bg-white/60 backdrop-blur-md rounded-3xl p-8 border shadow-sm space-y-8">
         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
           <div className="relative">
@@ -232,6 +234,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                     username={art.username}
                     likesCount={art.likesCount || 0}
                     tags={art.tags}
+                    showDelete={isOwnProfile}
                   />
                 ))}
                 {userPosts.length === 0 && (
@@ -262,7 +265,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           </Tabs>
         </div>
 
-        {/* Sidebar Activity */}
         <div className="space-y-8">
           <div className="bg-white p-6 rounded-3xl border shadow-sm">
             <h3 className="font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">

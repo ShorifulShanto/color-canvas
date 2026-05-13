@@ -4,7 +4,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Heart, MessageCircle, Share2, User } from "lucide-react";
+import { Heart, MessageCircle, Share2, User, Trash2, Loader2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
@@ -12,6 +12,7 @@ import { doc, updateDoc, increment, setDoc, deleteDoc, getDoc, serverTimestamp }
 import { useAuth, useFirestore } from "@/firebase";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Button } from "@/components/ui/button";
 
 interface ArtworkCardProps {
   id: string;
@@ -20,12 +21,14 @@ interface ArtworkCardProps {
   username: string;
   likesCount: number;
   tags?: string[];
+  showDelete?: boolean;
 }
 
-export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = [] }: ArtworkCardProps) {
+export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = [], showDelete = false }: ArtworkCardProps) {
   const { user } = useAuth();
   const db = useFirestore();
   const [isLiked, setIsLiked] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,6 +47,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
 
   const handleLike = async (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (!user) {
       toast({ title: "Login required", description: "Log in to like artwork." });
       return;
@@ -76,8 +80,35 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
     }
   };
 
+  const handleDelete = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!db || !id) return;
+
+    if (!confirm("Are you sure you want to delete this masterpiece? This action cannot be undone.")) return;
+
+    setIsDeleting(true);
+    const postRef = doc(db, "posts", id);
+    
+    deleteDoc(postRef)
+      .then(() => {
+        toast({ title: "Artwork deleted", description: "It has been removed from your gallery." });
+      })
+      .catch(async (error) => {
+        const permissionError = new FirestorePermissionError({
+          path: postRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      })
+      .finally(() => {
+        setIsDeleting(false);
+      });
+  };
+
   const handleShare = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (typeof window === 'undefined') return;
     const url = `${window.location.origin}/explore/${id}`;
     navigator.clipboard.writeText(url);
@@ -95,8 +126,19 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
             className="object-cover transition-transform duration-700 group-hover:scale-105"
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           />
-          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-6">
-            <div className="flex gap-2 flex-wrap">
+          <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-start justify-end p-4">
+            {showDelete && (
+              <Button 
+                variant="destructive" 
+                size="icon" 
+                onClick={handleDelete} 
+                className="rounded-full shadow-lg"
+                disabled={isDeleting}
+              >
+                {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+              </Button>
+            )}
+            <div className="absolute bottom-6 left-6 flex gap-2 flex-wrap">
               {tags?.slice(0, 2).map(tag => (
                 <Badge key={tag} className="bg-white/90 text-black border-none text-[10px] font-bold px-3">
                   {tag}
