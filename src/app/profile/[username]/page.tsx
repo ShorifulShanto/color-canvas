@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, onSnapshot, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -19,7 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, XAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username } = use(params);
@@ -42,7 +42,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       setLoading(true);
       try {
         const usersRef = collection(db, "users");
-        // Ensure case-insensitive username lookup
+        // Use case-insensitive username lookup
         const q = query(usersRef, where("username", "==", username.toLowerCase()));
         const querySnapshot = await getDocs(q);
         
@@ -52,14 +52,21 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           setTargetProfile(profileData);
           
           const postsRef = collection(db, "posts");
+          // Simplified query to avoid index requirements for initial prototype
           const postsQuery = query(
             postsRef, 
-            where("userId", "==", profileDoc.id),
-            orderBy("createdAt", "desc")
+            where("userId", "==", profileDoc.id)
           );
           
           unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-            setUserPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            const posts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            // Sort manually to ensure consistent UI without requiring a composite index
+            const sortedPosts = posts.sort((a: any, b: any) => {
+              const dateA = a.createdAt?.seconds || 0;
+              const dateB = b.createdAt?.seconds || 0;
+              return dateB - dateA;
+            });
+            setUserPosts(sortedPosts);
           }, (error) => {
             const permissionError = new FirestorePermissionError({
               path: 'posts',
@@ -88,7 +95,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     const counts: Record<string, number> = {};
     userPosts.forEach(post => {
       if (!post.createdAt) return;
-      // Handle both Firestore Timestamp and possible native Date
       const dateObj = typeof post.createdAt.toDate === 'function' ? post.createdAt.toDate() : new Date(post.createdAt);
       const date = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       counts[date] = (counts[date] || 0) + 1;
