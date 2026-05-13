@@ -10,13 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X, Sparkles, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, X, Sparkles, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
 import { suggestArtworkTags } from "@/ai/flows/ai-artwork-tag-suggestion";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { uploadImageAction } from "@/app/actions/upload-actions";
 
 function UploadContent() {
   const { user, profile } = useAuthContext();
@@ -32,6 +33,7 @@ function UploadContent() {
   const [tags, setTags] = useState<string[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>("");
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -86,34 +88,56 @@ function UploadContent() {
     }
     
     setIsUploading(true);
-    const postData = {
-      userId: user.uid,
-      username: profile?.username || "anonymous",
-      imageUrl: preview,
-      title,
-      description,
-      tags,
-      likesCount: 0,
-      createdAt: serverTimestamp(),
-    };
+    setUploadStatus("Transferring to Cloudinary...");
 
-    const postsRef = collection(db, "posts");
-    addDoc(postsRef, postData)
-      .then(() => {
-        toast({ title: "Published!", description: "Your artwork is now live!" });
-        router.push("/explore");
-      })
-      .catch(async (error) => {
-        const permissionError = new FirestorePermissionError({
-          path: postsRef.path,
-          operation: 'create',
-          requestResourceData: postData,
+    try {
+      // 1. Securely transfer the image to Cloudinary storage
+      const cloudinaryUrl = await uploadImageAction(preview);
+      
+      setUploadStatus("Publishing to gallery...");
+
+      // 2. Prepare the post data with the permanent Cloudinary URL
+      const postData = {
+        userId: user.uid,
+        username: profile?.username || "anonymous",
+        imageUrl: cloudinaryUrl, // Permanent Cloudinary link
+        title,
+        description,
+        tags,
+        likesCount: 0,
+        createdAt: serverTimestamp(),
+      };
+
+      // 3. Save to Firestore (non-blocking per guidelines)
+      const postsRef = collection(db, "posts");
+      addDoc(postsRef, postData)
+        .catch(async (error) => {
+          const permissionError = new FirestorePermissionError({
+            path: postsRef.path,
+            operation: 'create',
+            requestResourceData: postData,
+          });
+          errorEmitter.emit('permission-error', permissionError);
         });
-        errorEmitter.emit('permission-error', permissionError);
-      })
-      .finally(() => {
-        setIsUploading(false);
+
+      toast({ 
+        title: "Masterpiece Published!", 
+        description: "Your work is now live and stored permanently." 
       });
+      
+      // Navigate to explore immediately
+      router.push("/explore");
+
+    } catch (error: any) {
+      console.error("Upload Error:", error);
+      toast({ 
+        title: "Upload failed", 
+        description: error.message || "Something went wrong during the transfer.", 
+        variant: "destructive" 
+      });
+      setIsUploading(false);
+      setUploadStatus("");
+    }
   };
 
   return (
@@ -132,10 +156,10 @@ function UploadContent() {
           >
             {preview ? (
               <>
-                <Image src={preview} alt="Preview" fill className="object-cover" />
+                <Image src={preview} alt="Preview" fill className="object-cover" unoptimized={preview.startsWith('data:')} />
                 <button 
                   onClick={(e) => { e.stopPropagation(); setPreview(null); setFile(null); }}
-                  className="absolute top-4 right-4 p-2 bg-black/60 text-white rounded-full hover:bg-black/80 shadow-lg"
+                  className="absolute top-4 right-4 p-2 bg-black/60 text-white rounded-full hover:bg-black/80 shadow-lg z-10"
                 >
                   <X size={20} />
                 </button>
@@ -176,7 +200,7 @@ function UploadContent() {
                   variant="secondary" 
                   size="sm" 
                   onClick={generateAiTags}
-                  disabled={isAiLoading}
+                  disabled={isAiLoading || isUploading}
                   className="rounded-full px-4"
                 >
                   {isAiLoading ? <Loader2 size={16} className="animate-spin" /> : "Suggest"}
@@ -196,6 +220,7 @@ function UploadContent() {
                 className="h-12 border-primary/20 rounded-xl focus-visible:ring-accent bg-white shadow-sm"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                disabled={isUploading}
               />
             </div>
             
@@ -207,6 +232,7 @@ function UploadContent() {
                 className="min-h-[140px] border-primary/20 rounded-xl focus-visible:ring-accent bg-white shadow-sm resize-none"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
+                disabled={isUploading}
               />
             </div>
 
@@ -217,7 +243,11 @@ function UploadContent() {
                   tags.map(tag => (
                     <Badge key={tag} className="bg-accent text-white px-3 py-1 flex items-center gap-1">
                       {tag}
-                      <button onClick={() => setTags(tags.filter(t => t !== tag))} className="hover:text-black">
+                      <button 
+                        onClick={() => !isUploading && setTags(tags.filter(t => t !== tag))} 
+                        className="hover:text-black disabled:opacity-50"
+                        disabled={isUploading}
+                      >
                         <X size={10} />
                       </button>
                     </Badge>
@@ -231,12 +261,27 @@ function UploadContent() {
 
           <div className="pt-6 border-t space-y-4">
             <Button 
-              className="w-full h-14 text-lg bg-accent text-white hover:bg-accent/90 rounded-full shadow-lg"
+              className="w-full h-14 text-lg bg-accent text-white hover:bg-accent/90 rounded-full shadow-lg gap-2"
               onClick={handleUpload}
-              disabled={isUploading}
+              disabled={isUploading || !preview || !title}
             >
-              {isUploading ? <><Loader2 size={20} className="animate-spin mr-2" /> Publishing...</> : "Share to Gallery"}
+              {isUploading ? (
+                <>
+                  <Loader2 size={20} className="animate-spin" />
+                  {uploadStatus}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 size={20} />
+                  Share to Gallery
+                </>
+              )}
             </Button>
+            {isUploading && (
+              <p className="text-center text-xs text-muted-foreground animate-pulse">
+                Securing your artwork in the permanent cloud...
+              </p>
+            )}
           </div>
         </div>
       </div>
