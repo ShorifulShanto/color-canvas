@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { User as UserIcon, Settings, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X } from "lucide-react";
+import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy } from "firebase/firestore";
 import Image from "next/image";
@@ -33,8 +33,8 @@ import { Bar, BarChart, XAxis } from "recharts";
 
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params);
-  const usernameParam = decodeURIComponent(rawUsername); 
-  const { user: currentUser, profile: currentProfile } = useAuth();
+  const usernameParam = decodeURIComponent(rawUsername).trim(); 
+  const { user: currentUser } = useAuth();
   const { toast } = useToast();
   const db = useFirestore();
   
@@ -57,7 +57,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       try {
         const usersRef = collection(db, "users");
         
-        // 1. Try Document ID lookup
+        // 1. Try Document ID lookup (UID lookup)
         const docRef = doc(db, "users", usernameParam);
         const docSnap = await getDoc(docRef);
         
@@ -67,19 +67,33 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           setEditUsername(data.username || "");
           setEditBio(data.bio || "");
           setEditImage(data.profileImage || data.profileImageUrl || "");
+          setLoading(false);
+          return;
+        }
+
+        // 2. Try Username Field lookup (Lowercase)
+        const q = query(usersRef, where("username", "==", usernameParam.toLowerCase()));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty) {
+          const profileDoc = querySnapshot.docs[0];
+          const data = { id: profileDoc.id, ...profileDoc.data() };
+          setTargetProfile(data);
+          setEditUsername(data.username || "");
+          setEditBio(data.bio || "");
+          setEditImage(data.profileImage || data.profileImageUrl || "");
         } else {
-          // 2. Try Username Field lookup
-          const q = query(usersRef, where("username", "==", usernameParam.toLowerCase()));
-          const querySnapshot = await getDocs(q);
-          if (!querySnapshot.empty) {
-            const profileDoc = querySnapshot.docs[0];
-            const data = { id: profileDoc.id, ...profileDoc.data() };
-            setTargetProfile(data);
-            setEditUsername(data.username || "");
-            setEditBio(data.bio || "");
-            setEditImage(data.profileImage || data.profileImageUrl || "");
+          // If viewing own profile by username link but it's not indexed yet
+          if (currentUser && (usernameParam.toLowerCase() === currentUser.uid.toLowerCase())) {
+             // Handle UID case mismatch in URL
+             const selfRef = doc(db, "users", currentUser.uid);
+             const selfSnap = await getDoc(selfRef);
+             if (selfSnap.exists()) {
+                const data = { id: selfSnap.id, ...selfSnap.data() };
+                setTargetProfile(data);
+             }
           } else {
-            toast({ title: "Artist not found", description: "This gallery belongs to no one.", variant: "destructive" });
+            toast({ title: "Artist not found", description: "The gallery for this artist is currently unavailable.", variant: "destructive" });
           }
         }
       } catch (error) {
@@ -90,11 +104,12 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     }
     
     fetchTargetProfile();
-  }, [usernameParam, db, toast]);
+  }, [usernameParam, db, toast, currentUser]);
 
-  // Stable query for artworks
+  // Stable query for artworks - Critical for stacking
   const postsQuery = useMemoFirebase(() => {
     if (!db || !targetProfile?.id) return null;
+    // We query by userId to ensure all works by this specific UID are "stacked"
     return query(
       collection(db, "posts"),
       where("userId", "==", targetProfile.id)
@@ -103,12 +118,13 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
   const { data: userPosts = [], isLoading: postsLoading } = useCollection(postsQuery);
 
-  // Client-side sorting for "Masterpieces"
+  // Client-side sorting ensures latest works appear top even without complex indexes
   const sortedPosts = useMemo(() => {
-    return [...(userPosts || [])].sort((a, b) => {
-      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt);
-      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt);
-      return dateB - dateA;
+    if (!userPosts) return [];
+    return [...userPosts].sort((a, b) => {
+      const dateA = a.createdAt?.toDate?.() || new Date(a.createdAt || 0);
+      const dateB = b.createdAt?.toDate?.() || new Date(b.createdAt || 0);
+      return dateB.getTime() - dateA.getTime();
     });
   }, [userPosts]);
 
@@ -119,14 +135,15 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     setIsSaving(true);
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
-      await updateDoc(userDocRef, {
+      const updatedData = {
         username: editUsername.toLowerCase().trim(),
         bio: editBio,
         profileImage: editImage,
-      });
-      setTargetProfile({ ...targetProfile, username: editUsername, bio: editBio, profileImage: editImage });
+      };
+      await updateDoc(userDocRef, updatedData);
+      setTargetProfile({ ...targetProfile, ...updatedData });
       setIsEditDialogOpen(false);
-      toast({ title: "Profile updated!", description: "Your identity has been refreshed." });
+      toast({ title: "Profile updated!", description: "Your creative identity has been refreshed." });
     } catch (error: any) {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
     } finally {

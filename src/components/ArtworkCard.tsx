@@ -115,12 +115,15 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
     toast({ title: "Link copied!", description: "Share your discovery." });
   };
 
+  // Safe image URL fallback
+  const finalImageURL = imageURL || "https://picsum.photos/seed/placeholder/600/800";
+
   return (
     <Card className="group overflow-hidden border-none shadow-none bg-transparent hover:-translate-y-1 transition-transform duration-300">
       <Link href={`/explore/${id}`}>
         <div className="relative aspect-[4/5] w-full overflow-hidden rounded-3xl bg-white shadow-sm border">
           <Image
-            src={imageURL}
+            src={finalImageURL}
             alt={title}
             fill
             className="object-cover transition-transform duration-700 group-hover:scale-105"
@@ -132,7 +135,7 @@ export function ArtworkCard({ id, imageURL, title, username, likesCount, tags = 
                 variant="destructive" 
                 size="icon" 
                 onClick={handleDelete} 
-                className="rounded-full shadow-lg"
+                className="rounded-full shadow-lg z-10"
                 disabled={isDeleting}
               >
                 {isDeleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
