@@ -11,11 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
-import { Upload, X, Sparkles, Loader2, ArrowLeft, CheckCircle2 } from "lucide-react";
+import { Upload, X, Sparkles, Loader2, ArrowLeft, CheckCircle2, Plus } from "lucide-react";
 import { suggestArtworkTags } from "@/ai/flows/ai-artwork-tag-suggestion";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, updateDoc, increment } from "firebase/firestore";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { uploadImageAction } from "@/app/actions/upload-actions";
@@ -32,20 +32,19 @@ function UploadContent() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadStatus, setUploadStatus] = useState<string>("");
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Handle authentication redirect
   useEffect(() => {
     if (!loading && !user) {
       router.push("/login");
     }
   }, [user, loading, router]);
 
-  // Handle source parameter from AI generation or search
   useEffect(() => {
     const sourceUrl = searchParams.get('source');
     if (sourceUrl) {
@@ -77,6 +76,14 @@ function UploadContent() {
     }
   };
 
+  const handleAddTag = () => {
+    const trimmed = tagInput.trim();
+    if (trimmed && !tags.includes(trimmed)) {
+      setTags([...tags, trimmed]);
+      setTagInput("");
+    }
+  };
+
   const generateAiTags = async () => {
     if (!preview) return;
     setIsAiLoading(true);
@@ -85,7 +92,9 @@ function UploadContent() {
         imageDataUri: preview,
         description: description
       });
-      setTags(response.tags);
+      // Merge unique tags
+      const newTags = Array.from(new Set([...tags, ...response.tags]));
+      setTags(newTags);
       toast({ title: "Tags Analyzed", description: "AI suggested relevant categories." });
     } catch (error) {
       toast({ title: "AI Tagging unavailable", description: "Try manual tagging.", variant: "destructive" });
@@ -120,19 +129,11 @@ function UploadContent() {
       };
 
       const postsRef = collection(db, "posts");
-      addDoc(postsRef, postData)
-        .catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-            path: postsRef.path,
-            operation: 'create',
-            requestResourceData: postData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        });
+      await addDoc(postsRef, postData);
 
       toast({ 
         title: "Masterpiece Published!", 
-        description: "Your work is now live and stored permanently." 
+        description: "Your work is now live." 
       });
       
       router.push("/explore");
@@ -152,7 +153,7 @@ function UploadContent() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-5xl space-y-8">
       <button onClick={() => router.back()} className="flex items-center gap-2 text-muted-foreground hover:text-accent transition-colors">
-        <ArrowLeft size={18} /> Back to Studio
+        <ArrowLeft size={18} /> Back
       </button>
 
       <div className="grid md:grid-cols-2 gap-12">
@@ -246,7 +247,19 @@ function UploadContent() {
             </div>
 
             <div className="space-y-3">
-              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Classification</Label>
+              <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Classification & Tags</Label>
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Add a tag..." 
+                  className="h-10 rounded-xl"
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                />
+                <Button onClick={handleAddTag} variant="outline" className="rounded-xl h-10 w-10 p-0">
+                  <Plus size={18} />
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-2 min-h-[48px] p-2 bg-white rounded-xl border border-primary/10">
                 {tags.length > 0 ? (
                   tags.map(tag => (
@@ -286,11 +299,6 @@ function UploadContent() {
                 </>
               )}
             </Button>
-            {isUploading && (
-              <p className="text-center text-xs text-muted-foreground animate-pulse">
-                Securing your artwork in the permanent cloud...
-              </p>
-            )}
           </div>
         </div>
       </div>

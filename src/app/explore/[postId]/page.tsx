@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ArrowLeft, MessageCircle, Heart, Share2, Loader2, Send, Trash2, Edit2, Check, X } from "lucide-react";
+import { ArrowLeft, MessageCircle, Heart, Share2, Loader2, Send, Trash2, Edit2, Check, X, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -34,6 +34,8 @@ export default function ArtworkDetailPage() {
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDesc, setEditDesc] = useState("");
+  const [editTags, setEditTags] = useState<string[]>([]);
+  const [newTagInput, setNewTagInput] = useState("");
 
   useEffect(() => {
     if (!postId || !db) return;
@@ -47,6 +49,7 @@ export default function ArtworkDetailPage() {
           setPost({ id: docSnap.id, ...data });
           setEditTitle(data.title || "");
           setEditDesc(data.description || "");
+          setEditTags(data.tags || []);
         } else {
           toast({ title: "Not found", description: "Artwork does not exist.", variant: "destructive" });
           router.push("/explore");
@@ -128,6 +131,18 @@ export default function ArtworkDetailPage() {
       });
   };
 
+  const handleAddTag = () => {
+    const trimmed = newTagInput.trim();
+    if (trimmed && !editTags.includes(trimmed)) {
+      setEditTags([...editTags, trimmed]);
+      setNewTagInput("");
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    setEditTags(editTags.filter(t => t !== tagToRemove));
+  };
+
   const handleUpdate = async () => {
     if (!db || !postId || !editTitle.trim()) return;
 
@@ -136,6 +151,7 @@ export default function ArtworkDetailPage() {
     const updateData = {
       title: editTitle,
       description: editDesc,
+      tags: editTags,
     };
 
     updateDoc(docRef, updateData)
@@ -227,23 +243,50 @@ export default function ArtworkDetailPage() {
                 <Button variant="outline" className="rounded-full gap-2 h-12 px-6">
                   <Heart size={20} /> {post.likesCount || 0}
                 </Button>
-                <Button variant="outline" size="icon" className="rounded-full h-12 w-12">
-                  <Share2 size={20} />
-                </Button>
               </div>
             </div>
 
             {isEditing ? (
-              <div className="space-y-4">
-                <Textarea 
-                  value={editDesc} 
-                  onChange={(e) => setEditDesc(e.target.value)}
-                  className="min-h-[150px] resize-none"
-                  placeholder="Tell us about your masterpiece..."
-                />
-                <Button onClick={handleUpdate} disabled={isSubmitting} className="rounded-full w-full bg-accent text-white h-12 gap-2">
+              <div className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Description</label>
+                  <Textarea 
+                    value={editDesc} 
+                    onChange={(e) => setEditDesc(e.target.value)}
+                    className="min-h-[150px] resize-none"
+                    placeholder="Tell us about your masterpiece..."
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Classification & Tags</label>
+                  <div className="flex gap-2">
+                    <Input 
+                      placeholder="Add a tag..." 
+                      className="h-10 rounded-xl"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddTag()}
+                    />
+                    <Button onClick={handleAddTag} variant="outline" className="rounded-xl h-10 w-10 p-0">
+                      <Plus size={18} />
+                    </Button>
+                  </div>
+                  <div className="flex flex-wrap gap-2 min-h-[48px] p-2 bg-white rounded-xl border border-primary/10">
+                    {editTags.map(tag => (
+                      <Badge key={tag} className="bg-accent text-white px-3 py-1 flex items-center gap-1">
+                        {tag}
+                        <button onClick={() => handleRemoveTag(tag)} className="hover:text-black">
+                          <X size={10} />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+
+                <Button onClick={handleUpdate} disabled={isSubmitting} className="rounded-full w-full bg-accent text-white h-14 gap-2 text-lg font-bold">
                   {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
-                  Save Updates
+                  Save Changes
                 </Button>
               </div>
             ) : (
