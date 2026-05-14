@@ -6,9 +6,9 @@ import { useAuth } from "@/context/AuthContext";
 import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X } from "lucide-react";
+import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X, Trash2, AlertTriangle } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc, writeBatch } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -139,6 +139,29 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     }
   };
 
+  const handleResetGallery = async () => {
+    if (!db || !currentUser) return;
+    if (!confirm("FREASH START: Are you sure? This will delete all your masterpieces from the community forever!")) return;
+    
+    setIsSaving(true);
+    try {
+      const q = query(collection(db, "posts"), where("userId", "==", currentUser.uid));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      
+      snap.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+      
+      await batch.commit();
+      toast({ title: "Fresh Start!", description: "All your uploads have been removed." });
+    } catch (error: any) {
+      toast({ title: "Reset failed", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const activityData = useMemo(() => {
     const counts: Record<string, number> = {};
     sortedPosts.forEach(post => {
@@ -226,15 +249,26 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                   <MapPin size={18} className="text-accent" /> Creative Studio
                 </p>
               </div>
-              {!isOwnProfile && (
-                <Button 
-                  onClick={() => setIsFollowing(!isFollowing)}
-                  variant={isFollowing ? "outline" : "default"}
-                  className={`${!isFollowing ? "bg-accent text-white hover:bg-accent/90" : ""} rounded-full px-10 h-14 text-lg font-bold shadow-xl transition-all`}
-                >
-                  {isFollowing ? "Following" : "Follow Artist"}
-                </Button>
-              )}
+              <div className="flex gap-3">
+                {isOwnProfile && (
+                  <Button 
+                    variant="destructive" 
+                    onClick={handleResetGallery}
+                    className="rounded-full px-6 h-14 font-bold gap-2"
+                  >
+                    <Trash2 size={18} /> Fresh Start
+                  </Button>
+                )}
+                {!isOwnProfile && (
+                  <Button 
+                    onClick={() => setIsFollowing(!isFollowing)}
+                    variant={isFollowing ? "outline" : "default"}
+                    className={`${!isFollowing ? "bg-accent text-white hover:bg-accent/90" : ""} rounded-full px-10 h-14 text-lg font-bold shadow-xl transition-all`}
+                  >
+                    {isFollowing ? "Following" : "Follow Artist"}
+                  </Button>
+                )}
+              </div>
             </div>
             
             <p className="text-xl max-w-3xl leading-relaxed text-foreground/80 italic">
@@ -288,7 +322,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                   </div>
                   <div className="space-y-2">
                     <p className="text-2xl font-bold">No artworks shared yet</p>
-                    <p className="text-muted-foreground max-w-sm mx-auto">Start your next vision and share it with the global community!</p>
+                    <p className="text-muted-foreground max-w-sm mx-auto">Start your next vision and share it with the community!</p>
                   </div>
                   {isOwnProfile && (
                     <Button onClick={() => window.location.href = "/upload"} className="rounded-full bg-accent text-white px-8 h-12 shadow-lg">
@@ -352,6 +386,22 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                </div>
              </div>
           </div>
+          
+          {isOwnProfile && (
+            <div className="bg-destructive/5 p-8 rounded-[2.5rem] border border-destructive/20 space-y-4">
+              <div className="flex items-center gap-2 text-destructive font-bold text-xs uppercase tracking-widest">
+                <AlertTriangle size={16} /> Danger Zone
+              </div>
+              <p className="text-xs text-muted-foreground">Permanently remove all your masterpieces from the community for a fresh start.</p>
+              <Button 
+                variant="outline" 
+                onClick={handleResetGallery}
+                className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white rounded-full"
+              >
+                Clear My Entire Gallery
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
