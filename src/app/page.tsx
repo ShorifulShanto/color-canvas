@@ -36,7 +36,7 @@ export default function Home() {
         <div className="container relative z-10 px-4 text-center space-y-8 max-w-4xl">
           <div className="inline-flex items-center gap-2 px-6 py-2 rounded-full bg-white/90 backdrop-blur-md text-accent border shadow-sm text-sm font-bold">
             <Sparkles size={16} />
-            <span>Artistic Vision Unleashed</span>
+            <span>Community Gallery</span>
           </div>
           <h1 className="font-headline font-bold text-6xl md:text-8xl tracking-tight leading-tight">
             Color<span className="text-accent">Canvas.</span>
@@ -45,11 +45,18 @@ export default function Home() {
             A minimal creative studio to discover inspiration, and share your vision with the world.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-            <Link href={user ? "/explore" : "/signup"}>
+            <Link href="/explore">
               <Button size="lg" className="bg-accent text-white hover:bg-accent/90 px-12 h-16 rounded-full shadow-2xl text-lg">
-                {user ? "Explore Gallery" : "Join the Community"} <ArrowRight size={20} className="ml-2" />
+                Explore Gallery <ArrowRight size={20} className="ml-2" />
               </Button>
             </Link>
+            {!user && (
+               <Link href="/signup">
+                <Button size="lg" variant="outline" className="border-accent text-accent hover:bg-accent hover:text-white px-12 h-16 rounded-full text-lg font-bold">
+                  Join Community
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       </section>
