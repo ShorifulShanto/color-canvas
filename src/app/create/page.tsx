@@ -5,10 +5,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
+import { useFirestore } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, Zap, Share2 } from "lucide-react";
+import { Sparkles, Search, Loader2, Wand2, ImageIcon, Plus, Zap, AlertCircle } from "lucide-react";
 import { generateArtwork } from "@/ai/flows/generate-artwork";
 import { refineArtPrompt } from "@/ai/flows/refine-prompt";
 import { searchPexels, PexelsPhoto } from "@/lib/pexels";
@@ -16,11 +17,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { doc, updateDoc, increment } from "firebase/firestore";
 
-export const maxDuration = 60; // Increase server action timeout for AI generation
+export const maxDuration = 60;
 
 export default function CreatePage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -33,6 +36,10 @@ export default function CreatePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [pexelsResults, setPexelsResults] = useState<PexelsPhoto[]>([]);
+
+  const generationLimit = 5;
+  const currentCount = profile?.generationCount || 0;
+  const isLimitReached = currentCount >= generationLimit;
 
   if (!user) {
     router.push("/login");
@@ -54,19 +61,27 @@ export default function CreatePage() {
   };
 
   const handleGenerate = async () => {
-    if (!aiPrompt) return;
+    if (!aiPrompt || isLimitReached || !db) return;
+    
     setIsGenerating(true);
     setGeneratedImage(null);
-    setGenerationStep("Initializing AI engine...");
+    setGenerationStep("Initializing creative engine...");
     
     try {
-      setGenerationStep("Step 1: Rendering vision...");
+      setGenerationStep("Rendering vision...");
       const result = await generateArtwork({ prompt: aiPrompt });
+      
+      // Update generation count in Firestore
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        generationCount: increment(1)
+      });
+
       setGeneratedImage(result.imageUrl);
       setGenerationStep("Masterpiece ready!");
       toast({ 
         title: "Success!", 
-        description: "Your artwork has been created and saved." 
+        description: `Masterpiece created! (${currentCount + 1}/${generationLimit})` 
       });
     } catch (error: any) {
       console.error("Generation Error:", error);
@@ -102,17 +117,22 @@ export default function CreatePage() {
   return (
     <div className="container mx-auto px-4 py-8 max-w-6xl space-y-12">
       <div className="text-center space-y-4">
-        <h1 className="font-headline font-bold text-4xl md:text-5xl">AI Creative Studio</h1>
+        <h1 className="font-headline font-bold text-4xl md:text-5xl">Creative Studio</h1>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Render your wildest imaginations in seconds using advanced AI models.
         </p>
+        <div className="flex justify-center">
+          <Badge variant={isLimitReached ? "destructive" : "outline"} className="px-6 py-2 rounded-full text-sm">
+            {isLimitReached ? "Limit Reached" : `${currentCount} / ${generationLimit} Generations Used`}
+          </Badge>
+        </div>
       </div>
 
       <Tabs defaultValue="ai" className="space-y-8">
         <div className="flex justify-center">
           <TabsList className="grid w-full max-w-md grid-cols-2 rounded-full h-12 p-1 bg-white border shadow-sm">
             <TabsTrigger value="ai" className="rounded-full flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-              <Wand2 size={18} /> Studio
+              <Wand2 size={18} /> AI Studio
             </TabsTrigger>
             <TabsTrigger value="discover" className="rounded-full flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
               <Search size={18} /> Discovery
@@ -132,6 +152,13 @@ export default function CreatePage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6 pt-6">
+                {isLimitReached && (
+                  <div className="bg-destructive/10 text-destructive p-4 rounded-2xl flex items-center gap-3 text-sm font-medium">
+                    <AlertCircle size={20} />
+                    You've used all 5 generations. Share your gallery to inspire others!
+                  </div>
+                )}
+                
                 <div className="space-y-4">
                   <div className="relative">
                     <Textarea
@@ -139,13 +166,14 @@ export default function CreatePage() {
                       className="w-full min-h-[200px] p-6 rounded-2xl border border-primary/20 bg-background focus:ring-2 focus:ring-accent outline-none resize-none transition-all text-lg"
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
+                      disabled={isLimitReached}
                     />
                     <div className="absolute bottom-4 right-4 flex gap-2">
                       <Button
                         size="sm"
                         variant="secondary"
                         onClick={handleRefine}
-                        disabled={isRefining || !aiPrompt || isGenerating}
+                        disabled={isRefining || !aiPrompt || isGenerating || isLimitReached}
                         className="rounded-full gap-2 shadow-sm bg-white hover:bg-accent hover:text-white border"
                       >
                         {isRefining ? <Loader2 size={14} className="animate-spin" /> : <Zap size={14} />}
@@ -157,7 +185,7 @@ export default function CreatePage() {
                 
                 <Button 
                   onClick={handleGenerate}
-                  disabled={isGenerating || !aiPrompt}
+                  disabled={isGenerating || !aiPrompt || isLimitReached}
                   className="w-full h-16 text-lg bg-accent text-white hover:bg-accent/90 rounded-full shadow-lg transition-all"
                 >
                   {isGenerating ? (
@@ -167,15 +195,15 @@ export default function CreatePage() {
                     </>
                   ) : (
                     <>
-                      <Wand2 className="mr-3" size={24} /> Generate
+                      <Wand2 className="mr-3" size={24} /> Generate Masterpiece
                     </>
                   )}
                 </Button>
 
                 <div className="pt-4 flex items-center justify-center gap-4 opacity-60">
+                  <Badge variant="outline">Poe API Ready</Badge>
                   <Badge variant="outline">Imagen 4</Badge>
                   <Badge variant="outline">HQ Rendering</Badge>
-                  <Badge variant="outline">Cloudinary</Badge>
                 </div>
               </CardContent>
             </Card>

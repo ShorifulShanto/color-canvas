@@ -13,7 +13,8 @@ import {
   Upload, 
   Home, 
   Menu,
-  LayoutGrid
+  LayoutGrid,
+  Wand2
 } from "lucide-react";
 import {
   Sheet,
@@ -39,7 +40,8 @@ export function Navbar() {
     { label: "Gallery", href: "/", icon: <Home size={18} /> },
     { label: "Explore", href: "/explore", icon: <LayoutGrid size={18} /> },
     ...(user ? [
-      { label: "Upload Work", href: "/upload", icon: <Upload size={18} /> },
+      { label: "Studio", href: "/create", icon: <Wand2 size={18} /> },
+      { label: "Upload", href: "/upload", icon: <Upload size={18} /> },
     ] : []),
   ];
 

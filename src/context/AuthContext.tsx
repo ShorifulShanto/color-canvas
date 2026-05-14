@@ -12,6 +12,7 @@ interface UserProfile {
   profileImage: string;
   profileImageUrl?: string;
   bio: string;
+  generationCount: number;
   createdAt: any;
 }
 
@@ -46,7 +47,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubscribe = onSnapshot(docRef, async (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as UserProfile;
-        setProfile(data);
+        setProfile({
+          ...data,
+          generationCount: data.generationCount || 0
+        });
         setProfileLoading(false);
       } else {
         // Self-healing for missing profiles (Email or Google users)
@@ -56,6 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           email: user.email || "",
           profileImage: user.photoURL || "",
           bio: "New creator on ColorCanvas!",
+          generationCount: 0,
           createdAt: serverTimestamp(),
         };
         await setDoc(docRef, newProfile);

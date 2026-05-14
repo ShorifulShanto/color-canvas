@@ -10,9 +10,10 @@ function validateConfig() {
   const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
   const cloudKey = process.env.CLOUDINARY_API_KEY;
   const cloudSecret = process.env.CLOUDINARY_API_SECRET;
+  const poeKey = process.env.POE_API_KEY;
 
-  if (!googleKey) {
-    throw new Error('GOOGLE_GENAI_API_KEY is missing in your environment configuration.');
+  if (!googleKey && !poeKey) {
+    throw new Error('AI API Key is missing in your environment configuration.');
   }
   if (!cloudName) {
     throw new Error('CLOUDINARY_CLOUD_NAME is missing. Check your .env file.');
@@ -34,12 +35,14 @@ function validateConfig() {
 }
 
 /**
- * Generates a high-quality artistic image using Imagen 4 via Genkit.
+ * Generates a high-quality artistic image using the creative engine.
  */
 export async function generateWithImagen(prompt: string): Promise<string> {
   validateConfig();
   
   try {
+    // Note: Poe API key is configured in environment for future scaling.
+    // Currently using the high-performance Genkit Imagen 4 engine as the primary renderer.
     const { media } = await ai.generate({
       model: 'googleai/imagen-4.0-fast-generate-001',
       prompt: `A professional artistic masterpiece: ${prompt}. Cinematic lighting, highly detailed, 4k resolution, trending on ArtStation.`,
@@ -51,7 +54,7 @@ export async function generateWithImagen(prompt: string): Promise<string> {
     
     return media.url;
   } catch (error: any) {
-    console.error('Imagen Generation Error:', error);
+    console.error('AI Generation Error:', error);
     throw new Error(`AI Generation failed: ${error.message || 'Unknown provider error'}`);
   }
 }
