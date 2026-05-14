@@ -1,11 +1,12 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
-import { useAuth } from "@/firebase";
+import { useAuth } from "@/context/AuthContext";
+import { useAuth as useFirebaseInstance } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,37 +17,41 @@ import { useToast } from "@/hooks/use-toast";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const auth = useAuth();
+  const { user, loading } = useAuth();
+  const auth = useFirebaseInstance();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push("/");
+    }
+  }, [user, loading, router]);
+
+  if (loading) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoadingAction(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       toast({ title: "Welcome back!", description: "Successfully logged in." });
-      router.push("/");
     } catch (error: any) {
       toast({ title: "Login failed", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    setLoading(true);
+    setLoadingAction(true);
     const provider = new GoogleAuthProvider();
     try {
-      // Use signInWithPopup for the easiest flow in this environment
       await signInWithPopup(auth, provider);
       toast({ title: "Welcome back!", description: "Logged in with Google." });
-      router.push("/");
     } catch (error: any) {
       toast({ title: "Google Login failed", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   };
 
@@ -95,9 +100,9 @@ export default function LoginPage() {
             <Button 
               type="submit" 
               className="w-full h-12 text-lg bg-accent text-white hover:bg-accent/90 rounded-full"
-              disabled={loading}
+              disabled={loadingAction}
             >
-              {loading ? <Loader2 size={20} className="animate-spin" /> : "Sign In"}
+              {loadingAction ? <Loader2 size={20} className="animate-spin" /> : "Sign In"}
             </Button>
           </form>
 
@@ -114,7 +119,7 @@ export default function LoginPage() {
             variant="outline" 
             className="w-full h-12 rounded-full border-primary/30 gap-2"
             onClick={handleGoogleLogin}
-            disabled={loading}
+            disabled={loadingAction}
           >
             <Chrome size={18} /> Google
           </Button>

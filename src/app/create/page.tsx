@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
@@ -22,7 +22,7 @@ import { doc, updateDoc, increment } from "firebase/firestore";
 export const maxDuration = 60;
 
 export default function CreatePage() {
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   const db = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
@@ -37,14 +37,25 @@ export default function CreatePage() {
   const [isSearching, setIsSearching] = useState(false);
   const [pexelsResults, setPexelsResults] = useState<PexelsPhoto[]>([]);
 
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="animate-spin text-accent" size={48} />
+      </div>
+    );
+  }
+
+  if (!user) return null;
+
   const generationLimit = 5;
   const currentCount = profile?.generationCount || 0;
   const isLimitReached = currentCount >= generationLimit;
-
-  if (!user) {
-    router.push("/login");
-    return null;
-  }
 
   const handleRefine = async () => {
     if (!aiPrompt) return;

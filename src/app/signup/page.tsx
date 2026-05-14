@@ -1,30 +1,37 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
-import { useAuth, useFirestore } from "@/firebase";
+import { useAuth, useFirestore, useAuth as useFirebaseInstance } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Palette, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 
 export default function SignupPage() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loadingAction, setLoadingAction] = useState(false);
   const router = useRouter();
   const { toast } = useToast();
-  const auth = useAuth();
+  const { user, loading } = useAuth();
+  const auth = useFirebaseInstance();
   const db = useFirestore();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.push("/");
+    }
+  }, [user, loading, router]);
+
+  if (loading) return null;
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,28 +39,27 @@ export default function SignupPage() {
       toast({ title: "Invalid username", description: "Username must be at least 3 characters.", variant: "destructive" });
       return;
     }
-    setLoading(true);
+    setLoadingAction(true);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
+      const newUser = userCredential.user;
 
-      const userDocRef = doc(db, "users", user.uid);
+      const userDocRef = doc(db, "users", newUser.uid);
       const userData = {
         username: username.toLowerCase().trim().replace(/\s+/g, '_'),
         email,
         profileImage: "",
         bio: "New creator on ColorCanvas!",
+        generationCount: 0,
         createdAt: serverTimestamp(),
       };
 
       await setDoc(userDocRef, userData);
       
       toast({ title: "Account created!", description: "Welcome to the creative community." });
-      router.push("/");
     } catch (error: any) {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
-    } finally {
-      setLoading(false);
+      setLoadingAction(false);
     }
   };
 
@@ -111,9 +117,9 @@ export default function SignupPage() {
             <Button 
               type="submit" 
               className="w-full h-16 text-xl bg-accent text-white hover:bg-accent/90 rounded-full font-bold shadow-xl transition-all"
-              disabled={loading}
+              disabled={loadingAction}
             >
-              {loading ? <Loader2 size={24} className="animate-spin" /> : "Create Artist Account"}
+              {loadingAction ? <Loader2 size={24} className="animate-spin" /> : "Create Artist Account"}
             </Button>
           </form>
         </CardContent>

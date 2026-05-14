@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useRef, useEffect, Suspense } from "react";
@@ -20,7 +21,7 @@ import { FirestorePermissionError } from '@/firebase/errors';
 import { uploadImageAction } from "@/app/actions/upload-actions";
 
 function UploadContent() {
-  const { user, profile } = useAuthContext();
+  const { user, profile, loading } = useAuthContext();
   const db = useFirestore();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -37,6 +38,13 @@ function UploadContent() {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Handle authentication redirect
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
   // Handle source parameter from AI generation or search
   useEffect(() => {
     const sourceUrl = searchParams.get('source');
@@ -45,21 +53,20 @@ function UploadContent() {
     }
   }, [searchParams]);
 
-  // Handle authentication redirect correctly inside useEffect
-  useEffect(() => {
-    if (!user) {
-      router.push("/login");
-    }
-  }, [user, router]);
-
-  if (!user) {
-    return null;
+  if (loading) {
+    return (
+      <div className="flex h-[80vh] items-center justify-center">
+        <Loader2 className="animate-spin text-accent" size={48} />
+      </div>
+    );
   }
+
+  if (!user) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (selectedFile) {
-      if (selectedFile.size > 10 * 1024 * 1024) { // Sync with bodySizeLimit in next.config.ts
+      if (selectedFile.size > 10 * 1024 * 1024) { 
         toast({ title: "File too large", description: "Please upload an image under 10MB.", variant: "destructive" });
         return;
       }
@@ -97,16 +104,14 @@ function UploadContent() {
     setUploadStatus("Transferring to Cloudinary...");
 
     try {
-      // 1. Securely transfer the image to Cloudinary storage
       const cloudinaryUrl = await uploadImageAction(preview);
       
       setUploadStatus("Publishing to gallery...");
 
-      // 2. Prepare the post data with the permanent Cloudinary URL
       const postData = {
         userId: user.uid,
         username: profile?.username || "anonymous",
-        imageUrl: cloudinaryUrl, // Permanent Cloudinary link
+        imageUrl: cloudinaryUrl, 
         title,
         description,
         tags,
@@ -114,7 +119,6 @@ function UploadContent() {
         createdAt: serverTimestamp(),
       };
 
-      // 3. Save to Firestore (non-blocking per guidelines)
       const postsRef = collection(db, "posts");
       addDoc(postsRef, postData)
         .catch(async (error) => {
@@ -131,7 +135,6 @@ function UploadContent() {
         description: "Your work is now live and stored permanently." 
       });
       
-      // Navigate to explore immediately
       router.push("/explore");
 
     } catch (error: any) {
