@@ -57,7 +57,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       try {
         const usersRef = collection(db, "users");
         
-        // 1. First check if it's a direct UID (UIDs are case-sensitive)
+        // 1. First check if it's a direct UID
         const docRef = doc(db, "users", usernameParam);
         const docSnap = await getDoc(docRef);
         
