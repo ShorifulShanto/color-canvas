@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, where, getDocs, doc, getDoc, updateDoc, orderBy } from "firebase/firestore";
+import { collection, query, where, getDocs, doc, getDoc, updateDoc } from "firebase/firestore";
 import Image from "next/image";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -83,29 +83,20 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           setEditBio(data.bio || "");
           setEditImage(data.profileImage || data.profileImageUrl || "");
         } else {
-          // Special case: Viewing own profile but the indexed username lookup failed temporarily
-          if (currentUser && (usernameParam === currentUser.uid)) {
-            const selfRef = doc(db, "users", currentUser.uid);
-            const selfSnap = await getDoc(selfRef);
-            if (selfSnap.exists()) {
-              const data = { id: selfSnap.id, ...selfSnap.data() };
-              setTargetProfile(data);
-            }
-          } else {
-            setTargetProfile(null);
-          }
+          setTargetProfile(null);
         }
       } catch (error) {
         console.error("Profile fetch error:", error);
+        setTargetProfile(null);
       } finally {
         setLoading(false);
       }
     }
     
     fetchTargetProfile();
-  }, [usernameParam, db, currentUser]);
+  }, [usernameParam, db]);
 
-  // STACKING FIX: Always query by userId (the UID) to ensure works "stack" correctly
+  // Query works strictly by the internal userId
   const postsQuery = useMemoFirebase(() => {
     if (!db || !targetProfile?.id) return null;
     return query(

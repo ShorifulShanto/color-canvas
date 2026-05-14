@@ -5,20 +5,22 @@ import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { Search, X, Loader2, Sparkles, Globe, Users, Plus } from "lucide-react";
+import { Search, X, Loader2, Globe, Users, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { useFirestore } from "@/firebase";
+import { useFirestore, useAuth as useAuthHook } from "@/firebase";
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { searchPexels, PexelsPhoto } from "@/lib/pexels";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 
 export default function ExplorePage() {
   const db = useFirestore();
   const router = useRouter();
+  const { user } = useAuth();
   
   // Pexels State
   const [pexelsQuery, setPexelsQuery] = useState("");
@@ -194,6 +196,7 @@ export default function ExplorePage() {
                   username={art.username}
                   likesCount={art.likesCount || 0}
                   tags={art.tags}
+                  showDelete={user?.uid === art.userId}
                 />
               ))}
             </div>
