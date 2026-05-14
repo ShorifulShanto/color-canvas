@@ -39,24 +39,16 @@ export default function SignupPage() {
 
       const userDocRef = doc(db, "users", user.uid);
       const userData = {
-        username: username.toLowerCase().trim(),
+        username: username.toLowerCase().trim().replace(/\s+/g, '_'),
         email,
         profileImage: "",
         bio: "New creator on ColorCanvas!",
         createdAt: serverTimestamp(),
       };
 
-      setDoc(userDocRef, userData)
-        .catch(async (error) => {
-          const permissionError = new FirestorePermissionError({
-            path: userDocRef.path,
-            operation: 'create',
-            requestResourceData: userData,
-          });
-          errorEmitter.emit('permission-error', permissionError);
-        });
-
-      toast({ title: "Account created!", description: "Welcome to the community." });
+      await setDoc(userDocRef, userData);
+      
+      toast({ title: "Account created!", description: "Welcome to the creative community." });
       router.push("/");
     } catch (error: any) {
       toast({ title: "Signup failed", description: error.message, variant: "destructive" });
@@ -67,67 +59,67 @@ export default function SignupPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <Card className="w-full max-w-md border-none shadow-2xl rounded-2xl overflow-hidden">
+      <Card className="w-full max-w-md border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white/80 backdrop-blur-md">
         <CardHeader className="space-y-4 pt-12 text-center">
           <div className="flex justify-center">
-            <div className="p-3 bg-accent rounded-2xl text-white shadow-lg shadow-accent/20">
-              <Palette size={32} />
+            <div className="p-4 bg-accent rounded-3xl text-white shadow-xl shadow-accent/20">
+              <Palette size={40} />
             </div>
           </div>
           <div className="space-y-2">
-            <CardTitle className="font-headline text-3xl font-bold">Join ColorCanvas</CardTitle>
-            <CardDescription className="text-base">Start your journey into the world of creative arts</CardDescription>
+            <CardTitle className="font-headline text-4xl font-bold">Join ColorCanvas</CardTitle>
+            <CardDescription className="text-lg">Start your journey into the world of creative arts</CardDescription>
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
           <form onSubmit={handleSignup} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Username</Label>
               <Input 
                 id="username" 
                 placeholder="creative_artist" 
                 required 
-                className="h-12 border-primary/30 rounded-lg"
+                className="h-14 border-primary/20 rounded-2xl bg-white shadow-sm px-6"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email Address</Label>
+              <Label htmlFor="email" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Email Address</Label>
               <Input 
                 id="email" 
                 type="email" 
                 placeholder="name@example.com" 
                 required 
-                className="h-12 border-primary/30 rounded-lg"
+                className="h-14 border-primary/20 rounded-2xl bg-white shadow-sm px-6"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-xs font-bold uppercase tracking-widest text-muted-foreground ml-1">Password</Label>
               <Input 
                 id="password" 
                 type="password" 
-                placeholder="At least 6 characters"
+                placeholder="Secure password"
                 required 
-                className="h-12 border-primary/30 rounded-lg"
+                className="h-14 border-primary/20 rounded-2xl bg-white shadow-sm px-6"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
             </div>
             <Button 
               type="submit" 
-              className="w-full h-12 text-lg bg-accent text-white hover:bg-accent/90 rounded-full"
+              className="w-full h-16 text-xl bg-accent text-white hover:bg-accent/90 rounded-full font-bold shadow-xl transition-all"
               disabled={loading}
             >
-              {loading ? <Loader2 size={20} className="animate-spin" /> : "Create Account"}
+              {loading ? <Loader2 size={24} className="animate-spin" /> : "Create Artist Account"}
             </Button>
           </form>
         </CardContent>
-        <CardFooter className="pb-12 pt-6 flex justify-center">
+        <CardFooter className="pb-12 pt-6 flex justify-center border-t border-primary/10">
           <p className="text-muted-foreground">
-            Already have an account? <Link href="/login" className="text-accent font-semibold hover:underline">Sign In</Link>
+            Already have an account? <Link href="/login" className="text-accent font-bold hover:underline">Sign In</Link>
           </p>
         </CardFooter>
       </Card>

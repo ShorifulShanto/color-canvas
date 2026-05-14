@@ -10,6 +10,7 @@ interface UserProfile {
   username: string;
   email: string;
   profileImage: string;
+  profileImageUrl?: string;
   bio: string;
   createdAt: any;
 }
@@ -42,25 +43,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setProfileLoading(true);
     const docRef = doc(db, 'users', user.uid);
     
-    // Use onSnapshot for real-time profile updates across the entire app
     const unsubscribe = onSnapshot(docRef, async (docSnap) => {
       if (docSnap.exists()) {
-        setProfile(docSnap.data() as UserProfile);
+        const data = docSnap.data() as UserProfile;
+        setProfile(data);
         setProfileLoading(false);
       } else {
-        // Self-healing for missing profiles
+        // Self-healing for missing profiles (Email or Google users)
+        const defaultUsername = user.email?.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g, '_') || `user_${user.uid.slice(0, 5)}`;
         const newProfile = {
-          username: user.displayName?.toLowerCase().replace(/\s+/g, '_') || `user_${user.uid.slice(0, 5)}`,
+          username: defaultUsername,
           email: user.email || "",
           profileImage: user.photoURL || "",
           bio: "New creator on ColorCanvas!",
           createdAt: serverTimestamp(),
         };
         await setDoc(docRef, newProfile);
-        // Snapshot will trigger again automatically
+        // Snapshot will re-trigger
       }
     }, (error) => {
-      console.error("AuthContext Snapshot error:", error);
+      console.error("AuthContext Profile sync error:", error);
       setProfileLoading(false);
     });
 

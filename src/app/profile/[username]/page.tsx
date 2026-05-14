@@ -57,7 +57,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       try {
         const usersRef = collection(db, "users");
         
-        // 1. Try Document ID lookup (UID lookup)
+        // 1. First check if it's a direct UID (UIDs are case-sensitive)
         const docRef = doc(db, "users", usernameParam);
         const docSnap = await getDoc(docRef);
         
@@ -71,7 +71,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           return;
         }
 
-        // 2. Try Username Field lookup (Lowercase)
+        // 2. Then check if it's a username (Usernames are stored lowercase)
         const q = query(usersRef, where("username", "==", usernameParam.toLowerCase()));
         const querySnapshot = await getDocs(q);
         
@@ -83,33 +83,31 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           setEditBio(data.bio || "");
           setEditImage(data.profileImage || data.profileImageUrl || "");
         } else {
-          // If viewing own profile by username link but it's not indexed yet
-          if (currentUser && (usernameParam.toLowerCase() === currentUser.uid.toLowerCase())) {
-             // Handle UID case mismatch in URL
-             const selfRef = doc(db, "users", currentUser.uid);
-             const selfSnap = await getDoc(selfRef);
-             if (selfSnap.exists()) {
-                const data = { id: selfSnap.id, ...selfSnap.data() };
-                setTargetProfile(data);
-             }
+          // Special case: Viewing own profile but the indexed username lookup failed temporarily
+          if (currentUser && (usernameParam === currentUser.uid)) {
+            const selfRef = doc(db, "users", currentUser.uid);
+            const selfSnap = await getDoc(selfRef);
+            if (selfSnap.exists()) {
+              const data = { id: selfSnap.id, ...selfSnap.data() };
+              setTargetProfile(data);
+            }
           } else {
-            toast({ title: "Artist not found", description: "The gallery for this artist is currently unavailable.", variant: "destructive" });
+            setTargetProfile(null);
           }
         }
       } catch (error) {
-        console.error("Profile lookup error:", error);
+        console.error("Profile fetch error:", error);
       } finally {
         setLoading(false);
       }
     }
     
     fetchTargetProfile();
-  }, [usernameParam, db, toast, currentUser]);
+  }, [usernameParam, db, currentUser]);
 
-  // Stable query for artworks - Critical for stacking
+  // STACKING FIX: Always query by userId (the UID) to ensure works "stack" correctly
   const postsQuery = useMemoFirebase(() => {
     if (!db || !targetProfile?.id) return null;
-    // We query by userId to ensure all works by this specific UID are "stacked"
     return query(
       collection(db, "posts"),
       where("userId", "==", targetProfile.id)
@@ -118,7 +116,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
   const { data: userPosts = [], isLoading: postsLoading } = useCollection(postsQuery);
 
-  // Client-side sorting ensures latest works appear top even without complex indexes
   const sortedPosts = useMemo(() => {
     if (!userPosts) return [];
     return [...userPosts].sort((a, b) => {
@@ -136,14 +133,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     try {
       const userDocRef = doc(db, "users", currentUser.uid);
       const updatedData = {
-        username: editUsername.toLowerCase().trim(),
+        username: editUsername.toLowerCase().trim().replace(/\s+/g, '_'),
         bio: editBio,
         profileImage: editImage,
       };
       await updateDoc(userDocRef, updatedData);
       setTargetProfile({ ...targetProfile, ...updatedData });
       setIsEditDialogOpen(false);
-      toast({ title: "Profile updated!", description: "Your creative identity has been refreshed." });
+      toast({ title: "Profile updated!", description: "Your artist identity has been refreshed." });
     } catch (error: any) {
       toast({ title: "Update failed", description: error.message, variant: "destructive" });
     } finally {
@@ -168,14 +165,27 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
   if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-accent" size={32} /></div>;
 
+  if (!targetProfile) {
+    return (
+      <div className="container mx-auto px-4 py-32 text-center space-y-6">
+        <div className="w-24 h-24 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+          <X size={48} />
+        </div>
+        <h1 className="text-3xl font-headline font-bold">Artist Not Found</h1>
+        <p className="text-muted-foreground max-w-md mx-auto">The gallery you are looking for is unavailable or has been moved.</p>
+        <Button onClick={() => window.location.href = "/"} variant="outline" className="rounded-full px-8">Back Home</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
-      <div className="bg-white/60 backdrop-blur-md rounded-3xl p-8 border shadow-sm space-y-8">
+      <div className="bg-white/60 backdrop-blur-md rounded-[3rem] p-8 md:p-12 border shadow-sm space-y-8">
         <div className="flex flex-col md:flex-row gap-8 items-start md:items-center">
-          <div className="relative group">
-            <div className="w-32 h-32 md:w-40 md:h-40 rounded-full bg-primary border-4 border-white overflow-hidden shadow-xl flex items-center justify-center">
+          <div className="relative">
+            <div className="w-32 h-32 md:w-48 md:h-48 rounded-[2.5rem] bg-primary border-4 border-white overflow-hidden shadow-2xl flex items-center justify-center bg-gradient-to-br from-primary to-accent/20">
                {(targetProfile?.profileImage || targetProfile?.profileImageUrl) ? (
-                 <Image src={targetProfile.profileImage || targetProfile.profileImageUrl} alt="Avatar" width={160} height={160} className="object-cover" />
+                 <Image src={targetProfile.profileImage || targetProfile.profileImageUrl} alt="Avatar" width={192} height={192} className="object-cover" />
                ) : (
                  <UserIcon size={64} className="text-white/50" />
                )}
@@ -183,32 +193,32 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             {isOwnProfile && (
               <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="icon" className="absolute bottom-2 right-2 rounded-full bg-accent text-white shadow-lg hover:scale-110 transition-transform">
-                    <Edit2 size={16} />
+                  <Button size="icon" className="absolute -bottom-2 -right-2 h-12 w-12 rounded-2xl bg-accent text-white shadow-xl hover:scale-110 transition-transform">
+                    <Edit2 size={20} />
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="rounded-3xl max-w-md">
                   <DialogHeader>
-                    <DialogTitle>Edit Your Identity</DialogTitle>
-                    <DialogDescription>Your username is how others find your gallery.</DialogDescription>
+                    <DialogTitle className="text-2xl font-headline">Edit Your Profile</DialogTitle>
+                    <DialogDescription>Define your creative identity for the world to see.</DialogDescription>
                   </DialogHeader>
-                  <div className="space-y-4 py-4">
+                  <div className="space-y-6 py-6">
                     <div className="space-y-2">
-                      <Label>Username</Label>
-                      <Input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} placeholder="artist_name" />
+                      <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Username</Label>
+                      <Input value={editUsername} onChange={(e) => setEditUsername(e.target.value)} placeholder="creative_artist" className="h-12 rounded-xl" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Profile Image URL</Label>
-                      <Input value={editImage} onChange={(e) => setEditImage(e.target.value)} placeholder="https://..." />
+                      <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Profile Image URL</Label>
+                      <Input value={editImage} onChange={(e) => setEditImage(e.target.value)} placeholder="https://unsplash.com/photo-..." className="h-12 rounded-xl" />
                     </div>
                     <div className="space-y-2">
-                      <Label>Bio</Label>
-                      <Textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} className="resize-none" />
+                      <Label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Short Bio</Label>
+                      <Textarea value={editBio} onChange={(e) => setEditBio(e.target.value)} className="resize-none min-h-[100px] rounded-xl" placeholder="Tell your story..." />
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button onClick={handleUpdateProfile} disabled={isSaving} className="w-full rounded-full bg-accent text-white">
-                      {isSaving ? <Loader2 className="animate-spin" /> : <Check className="mr-2" size={18} />}
+                    <Button onClick={handleUpdateProfile} disabled={isSaving} className="w-full h-14 rounded-full bg-accent text-white text-lg font-bold shadow-lg">
+                      {isSaving ? <Loader2 className="animate-spin" /> : <Check className="mr-2" size={20} />}
                       Save Profile
                     </Button>
                   </DialogFooter>
@@ -220,50 +230,50 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <div className="space-y-4 flex-grow">
             <div className="flex flex-wrap items-center gap-4 justify-between">
               <div>
-                <h1 className="font-headline font-bold text-3xl md:text-4xl">@{targetProfile?.username || "Artist"}</h1>
-                <p className="text-muted-foreground flex items-center gap-1 mt-1">
-                  <MapPin size={14} /> Creative Studio
+                <h1 className="font-headline font-bold text-4xl md:text-5xl">@{targetProfile?.username || "Artist"}</h1>
+                <p className="text-muted-foreground flex items-center gap-1 mt-2 text-lg">
+                  <MapPin size={18} className="text-accent" /> Creative Studio
                 </p>
               </div>
               {!isOwnProfile && (
                 <Button 
                   onClick={() => setIsFollowing(!isFollowing)}
                   variant={isFollowing ? "outline" : "default"}
-                  className={`${!isFollowing ? "bg-accent text-white hover:bg-accent/90" : ""} rounded-full px-8 shadow-md`}
+                  className={`${!isFollowing ? "bg-accent text-white hover:bg-accent/90" : ""} rounded-full px-10 h-14 text-lg font-bold shadow-xl transition-all`}
                 >
                   {isFollowing ? "Following" : "Follow Artist"}
                 </Button>
               )}
             </div>
             
-            <p className="text-lg max-w-2xl leading-relaxed text-foreground/80">
-              {targetProfile?.bio || "Exploring the boundaries of digital and traditional art."}
+            <p className="text-xl max-w-3xl leading-relaxed text-foreground/80 italic">
+              "{targetProfile?.bio || "Exploring the boundaries of digital and traditional art."}"
             </p>
           </div>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-3 gap-8">
+      <div className="grid lg:grid-cols-3 gap-12">
         <div className="lg:col-span-2 space-y-8">
           <Tabs defaultValue="artworks" className="w-full space-y-8">
-            <TabsList className="bg-white/80 p-1 rounded-full h-12 shadow-sm border">
-              <TabsTrigger value="artworks" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-                <Grid size={18} /> My Art
+            <TabsList className="bg-white/80 p-1.5 rounded-full h-14 shadow-sm border inline-flex">
+              <TabsTrigger value="artworks" className="rounded-full px-10 h-11 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white font-bold transition-all">
+                <Grid size={20} /> My Gallery
               </TabsTrigger>
-              <TabsTrigger value="liked" className="rounded-full px-8 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white">
-                <Heart size={18} /> Liked
+              <TabsTrigger value="liked" className="rounded-full px-10 h-11 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white font-bold transition-all">
+                <Heart size={20} /> Liked
               </TabsTrigger>
             </TabsList>
             
-            <TabsContent value="artworks" className="space-y-8 outline-none">
-              <div className="flex items-center gap-2 mb-4">
-                <Sparkles size={20} className="text-accent" />
-                <h2 className="font-headline font-bold text-2xl">My Masterpieces</h2>
+            <TabsContent value="artworks" className="space-y-8 outline-none animate-in fade-in slide-in-from-bottom-2">
+              <div className="flex items-center gap-2">
+                <Sparkles size={24} className="text-accent" />
+                <h2 className="font-headline font-bold text-3xl">Masterpieces</h2>
               </div>
               
               {postsLoading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                  {[1, 2].map(i => <div key={i} className="aspect-[4/5] bg-white rounded-3xl animate-pulse" />)}
+                  {[1, 2, 3, 4].map(i => <div key={i} className="aspect-[4/5] bg-white/40 rounded-[3rem] animate-pulse" />)}
                 </div>
               ) : sortedPosts.length > 0 ? (
                 <div className="artwork-grid">
@@ -281,26 +291,31 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                   ))}
                 </div>
               ) : (
-                <div className="col-span-full py-20 text-center space-y-4 bg-white/40 rounded-[3rem] border border-dashed border-primary/40">
-                  <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
-                    <Grid size={32} />
+                <div className="py-24 text-center space-y-6 bg-white/40 rounded-[3rem] border-2 border-dashed border-primary/30">
+                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+                    <Grid size={40} />
                   </div>
-                  <div className="italic text-muted-foreground px-6">
-                    <p className="text-lg font-medium">No artworks shared yet.</p>
-                    <p className="text-sm">Start your next vision in the Studio and share it with the world!</p>
+                  <div className="space-y-2">
+                    <p className="text-2xl font-bold">No artworks shared yet</p>
+                    <p className="text-muted-foreground max-w-sm mx-auto">Start your next vision and share it with the global community!</p>
                   </div>
+                  {isOwnProfile && (
+                    <Button onClick={() => window.location.href = "/upload"} className="rounded-full bg-accent text-white px-8 h-12 shadow-lg">
+                      Upload Your First Work
+                    </Button>
+                  )}
                 </div>
               )}
             </TabsContent>
 
             <TabsContent value="liked" className="outline-none">
-              <div className="py-20 text-center space-y-4 bg-white/40 rounded-[3rem] border border-dashed border-primary/40">
-                <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
-                  <Heart size={32} />
+              <div className="py-24 text-center space-y-6 bg-white/40 rounded-[3rem] border-2 border-dashed border-primary/30">
+                <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-muted-foreground">
+                  <Heart size={40} />
                 </div>
-                <div className="italic text-muted-foreground">
-                  <p className="text-lg font-medium">No liked works yet.</p>
-                  <p className="text-sm">Explore the discovery portal and spread some creative love!</p>
+                <div className="space-y-2">
+                  <p className="text-2xl font-bold">No liked works yet</p>
+                  <p className="text-muted-foreground">Explore the discovery portal and spread some creative love!</p>
                 </div>
               </div>
             </TabsContent>
@@ -308,41 +323,41 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         </div>
 
         <div className="space-y-8">
-          <div className="bg-white p-6 rounded-3xl border shadow-sm">
-            <h3 className="font-bold mb-4 flex items-center gap-2 text-sm uppercase tracking-wider text-muted-foreground">
-              <BarChart3 size={18} className="text-accent" /> Creation Activity
+          <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm space-y-6">
+            <h3 className="font-bold flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+              <BarChart3 size={20} className="text-accent" /> Creation Momentum
             </h3>
-            <div className="h-[200px] w-full">
+            <div className="h-[250px] w-full">
               {activityData.length > 0 ? (
                 <ChartContainer config={chartConfig}>
                   <BarChart data={activityData}>
                     <XAxis dataKey="date" hide />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="count" fill="var(--color-count)" radius={4} />
+                    <Bar dataKey="count" fill="var(--color-count)" radius={8} />
                   </BarChart>
                 </ChartContainer>
               ) : (
-                <div className="h-full flex items-center justify-center text-muted-foreground text-sm italic border-2 border-dashed rounded-2xl">
+                <div className="h-full flex items-center justify-center text-muted-foreground text-sm italic border-2 border-dashed rounded-[2rem]">
                   Not enough activity data.
                 </div>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">Your artistic momentum over the last few uploads.</p>
+            <p className="text-sm text-muted-foreground text-center">Your artistic productivity over the last few sessions.</p>
           </div>
 
-          <div className="bg-white p-6 rounded-3xl border shadow-sm flex flex-col items-center gap-4">
-             <div className="flex gap-8 text-center w-full">
-               <div className="flex-1">
-                 <span className="block font-bold text-2xl">{sortedPosts.length}</span>
-                 <span className="text-xs text-muted-foreground uppercase tracking-widest">Works</span>
+          <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
+             <div className="flex gap-4 text-center">
+               <div className="flex-1 space-y-1">
+                 <span className="block font-bold text-3xl">{sortedPosts.length}</span>
+                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Creations</span>
                </div>
-               <div className="flex-1 border-x">
-                 <span className="block font-bold text-2xl">0</span>
-                 <span className="text-xs text-muted-foreground uppercase tracking-widest">Followers</span>
+               <div className="flex-1 border-x space-y-1">
+                 <span className="block font-bold text-3xl">0</span>
+                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Fans</span>
                </div>
-               <div className="flex-1">
-                 <span className="block font-bold text-2xl">0</span>
-                 <span className="text-xs text-muted-foreground uppercase tracking-widest">Following</span>
+               <div className="flex-1 space-y-1">
+                 <span className="block font-bold text-3xl">0</span>
+                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inspiring</span>
                </div>
              </div>
           </div>
