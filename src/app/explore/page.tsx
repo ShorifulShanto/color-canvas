@@ -15,7 +15,9 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
-  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection("communityQuery");
+  const { db } = useFirestore();
+  const communityQuery = useMemoFirebase(() => query(collection(db, "artworks"), orderBy("createdAt", "desc")), [db]);
+  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection(communityQuery);
   const [communitySearch, setCommunitySearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [searchPixelsTerm, setSearchPixelsTerm] = useState("");
