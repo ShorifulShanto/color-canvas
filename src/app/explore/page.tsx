@@ -1,6 +1,6 @@
 
 "use client";
-
+export const dynamic = 'force-dynamic';
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
