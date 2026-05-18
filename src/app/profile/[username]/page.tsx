@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
-import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X, Trash2, AlertTriangle } from "lucide-react";
+import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X, Trash2 } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { collection, query, where, getDocs, doc, getDoc, updateDoc, writeBatch } from "firebase/firestore";
 import Image from "next/image";
@@ -72,7 +72,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           return;
         }
 
-        // 2. Then check if it's a username (Usernames are stored lowercase)
+        // 2. Then check if it's a username
         const q = query(usersRef, where("username", "==", usernameParam.toLowerCase()));
         const querySnapshot = await getDocs(q);
         
@@ -97,7 +97,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     fetchTargetProfile();
   }, [usernameParam, db]);
 
-  // Query works strictly by the internal userId for stability and real-time "stacking"
+  // Query works strictly by the internal userId for stability
   const postsQuery = useMemoFirebase(() => {
     if (!db || !targetProfile?.id) return null;
     return query(
@@ -284,7 +284,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <Tabs defaultValue="artworks" className="w-full space-y-8">
             <TabsList className="bg-white/80 p-1.5 rounded-full h-14 shadow-sm border inline-flex">
               <TabsTrigger value="artworks" className="rounded-full px-10 h-11 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white font-bold transition-all">
-                <Grid size={20} /> My Gallery
+                <Grid size={20} /> Gallery
               </TabsTrigger>
               <TabsTrigger value="liked" className="rounded-full px-10 h-11 flex items-center gap-2 data-[state=active]:bg-accent data-[state=active]:text-white font-bold transition-all">
                 <Heart size={20} /> Liked
@@ -351,7 +351,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         <div className="space-y-8">
           <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm space-y-6">
             <h3 className="font-bold flex items-center gap-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
-              <BarChart3 size={20} className="text-accent" /> Creation Momentum
+              <BarChart3 size={20} className="text-accent" /> Momentum
             </h3>
             <div className="h-[250px] w-full">
               {activityData.length > 0 ? (
@@ -368,14 +368,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 </div>
               )}
             </div>
-            <p className="text-sm text-muted-foreground text-center">Your artistic productivity over the last few sessions.</p>
+            <p className="text-sm text-muted-foreground text-center">Artistic productivity overview.</p>
           </div>
 
           <div className="bg-white p-8 rounded-[2.5rem] border shadow-sm">
              <div className="flex gap-4 text-center">
                <div className="flex-1 space-y-1">
                  <span className="block font-bold text-3xl">{sortedPosts.length}</span>
-                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Creations</span>
+                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Works</span>
                </div>
                <div className="flex-1 border-x space-y-1">
                  <span className="block font-bold text-3xl">0</span>
@@ -383,7 +383,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                </div>
                <div className="flex-1 space-y-1">
                  <span className="block font-bold text-3xl">0</span>
-                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inspiring</span>
+                 <span className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold">Inspiration</span>
                </div>
              </div>
           </div>

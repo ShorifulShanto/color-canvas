@@ -7,6 +7,7 @@ import { doc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useUser, useFirestore } from '@/firebase';
 
 interface UserProfile {
+  id?: string;
   username: string;
   email: string;
   profileImage: string;
@@ -29,7 +30,7 @@ const AuthContext = createContext<AuthContextType>({
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading: authLoading } = useUser();
+  const { user, isUserLoading: authLoading } = useUser();
   const db = useFirestore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
@@ -49,6 +50,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const data = docSnap.data() as UserProfile;
         setProfile({
           ...data,
+          id: docSnap.id,
           generationCount: data.generationCount || 0
         });
         setProfileLoading(false);
@@ -63,8 +65,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           generationCount: 0,
           createdAt: serverTimestamp(),
         };
-        await setDoc(docRef, newProfile);
-        // Snapshot will re-trigger
+        // Don't await inside effect to avoid blocking, just fire and wait for snapshot
+        setDoc(docRef, newProfile).catch(console.error);
       }
     }, (error) => {
       console.error("AuthContext Profile sync error:", error);

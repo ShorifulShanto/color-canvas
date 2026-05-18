@@ -1,6 +1,7 @@
 
 "use client";
 export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -15,20 +16,35 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
-  const { db } = useFirestore();
-  const communityQuery = useMemoFirebase(() => query(collection(db, "artworks"), orderBy("createdAt", "desc")), [db]);
-  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection(communityQuery);
-  const [communitySearch, setCommunitySearch] = useState("");
-  const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  const [searchPixelsTerm, setSearchPixelsTerm] = useState("");
-  const [pixelsPhotos, setPixelsPhotos] = useState<any[]>([]);
-  const [isPixelsLoading, setIsPixelsLoading] = useState(false);
+  const { firestore: db } = useFirestore() as any;
+  const { user } = useUser();
   const router = useRouter();
 
+  // Memoize community query to prevent lag/re-renders
+  const communityQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "posts"), orderBy("createdAt", "desc"));
+  }, [db]);
+
+  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection(communityQuery);
+  
+  const [communitySearch, setCommunitySearch] = useState("");
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  
+  const [pexelsQuery, setPexelsQuery] = useState("");
+  const [pixelsPhotos, setPixelsPhotos] = useState<PexelsPhoto[]>([]);
+  const [isPixelsLoading, setIsPixelsLoading] = useState(false);
+
+  // Initial Discovery Load
+  useEffect(() => {
+    handlePexelsSearch("digital art");
+  }, []);
+
   const handlePexelsSearch = async (term: string) => {
+    if (!term) return;
     try {
       setIsPixelsLoading(true);
-      const results = await searchPexels(term || "art", 24);
+      const results = await searchPexels(term, 24);
       setPixelsPhotos(results);
     } finally {
       setIsPixelsLoading(false);
@@ -48,6 +64,9 @@ export default function ExplorePage() {
     const encodedUrl = encodeURIComponent(url);
     router.push(`/upload?source=${encodedUrl}`);
   };
+
+  const communityTags = ["Abstract", "Digital", "Landscape", "Oil", "Portrait", "Minimalist", "Vivid"];
+
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
       <div className="space-y-4 max-w-3xl">
@@ -73,7 +92,7 @@ export default function ExplorePage() {
             <Input 
               className="pl-12 h-12 rounded-full border-primary/20 bg-white focus-visible:ring-accent shadow-sm"
               placeholder="Search global discovery or community tags..."
-              value={pexelsQuery || communitySearch}
+              value={pexelsQuery}
               onChange={(e) => {
                 const val = e.target.value;
                 setPexelsQuery(val);
@@ -87,14 +106,14 @@ export default function ExplorePage() {
         </div>
 
         <TabsContent value="discovery" className="space-y-8 focus-visible:outline-none">
-          {isPexelsLoading ? (
+          {isPixelsLoading ? (
             <div className="flex flex-col items-center justify-center py-32 space-y-4">
               <Loader2 className="animate-spin text-accent" size={40} />
               <p className="text-muted-foreground font-medium">Connecting to Pexels Global...</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {pexelsPhotos.map((photo) => (
+              {pixelsPhotos.map((photo) => (
                 <div key={photo.id} className="group relative aspect-[3/4] rounded-3xl overflow-hidden bg-white shadow-sm transition-all hover:shadow-xl hover:-translate-y-1">
                   <Image 
                     src={photo.src.large} 
