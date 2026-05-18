@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useMemo, use } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { useFirestore, useCollection, useMemoFirebase } from "@/firebase";
+import { useFirestore, useCollection, useMemoFirebase, useUser } from "@/firebase";
 import { Button } from "@/components/ui/button";
 import { ArtworkCard } from "@/components/ArtworkCard";
 import { User as UserIcon, Edit2, Grid, Heart, MapPin, Loader2, BarChart3, Sparkles, Check, X, Trash2, AlertTriangle } from "lucide-react";
@@ -34,7 +34,8 @@ import { Bar, BarChart, XAxis } from "recharts";
 export default function ProfilePage({ params }: { params: Promise<{ username: string }> }) {
   const { username: rawUsername } = use(params);
   const usernameParam = decodeURIComponent(rawUsername).trim(); 
-  const { user: currentUser } = useAuth();
+  const { user: currentUser } = useUser();
+  const { profile: currentProfile } = useAuth();
   const { toast } = useToast();
   const db = useFirestore();
   
@@ -96,7 +97,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     fetchTargetProfile();
   }, [usernameParam, db]);
 
-  // Query works strictly by the internal userId
+  // Query works strictly by the internal userId for stability and real-time "stacking"
   const postsQuery = useMemoFirebase(() => {
     if (!db || !targetProfile?.id) return null;
     return query(
@@ -141,7 +142,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
   const handleResetGallery = async () => {
     if (!db || !currentUser) return;
-    if (!confirm("FREASH START: Are you sure? This will delete all your masterpieces from the community forever!")) return;
+    if (!confirm("Are you sure? This will delete all your masterpieces from the community forever!")) return;
     
     setIsSaving(true);
     try {
@@ -386,22 +387,6 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                </div>
              </div>
           </div>
-          
-          {isOwnProfile && (
-            <div className="bg-destructive/5 p-8 rounded-[2.5rem] border border-destructive/20 space-y-4">
-              <div className="flex items-center gap-2 text-destructive font-bold text-xs uppercase tracking-widest">
-                <AlertTriangle size={16} /> Danger Zone
-              </div>
-              <p className="text-xs text-muted-foreground">Permanently remove all your masterpieces from the community for a fresh start.</p>
-              <Button 
-                variant="outline" 
-                onClick={handleResetGallery}
-                className="w-full border-destructive text-destructive hover:bg-destructive hover:text-white rounded-full"
-              >
-                Clear My Entire Gallery
-              </Button>
-            </div>
-          )}
         </div>
       </div>
     </div>

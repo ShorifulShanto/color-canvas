@@ -8,19 +8,16 @@ import { ArtworkCard } from "@/components/ArtworkCard";
 import { Search, X, Loader2, Globe, Users, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { useFirestore, useAuth as useAuthHook } from "@/firebase";
-import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { collection, query, orderBy } from "firebase/firestore";
+import { useFirestore, useUser, useMemoFirebase, useCollection } from "@/firebase";
 import { searchPexels, PexelsPhoto } from "@/lib/pexels";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/context/AuthContext";
 
 export default function ExplorePage() {
   const db = useFirestore();
   const router = useRouter();
-  const { user } = useAuth();
+  const { user } = useUser();
   
   // Pexels State
   const [pexelsQuery, setPexelsQuery] = useState("");
@@ -28,8 +25,6 @@ export default function ExplorePage() {
   const [isPexelsLoading, setIsPexelsLoading] = useState(false);
 
   // Community State
-  const [communityArtworks, setCommunityArtworks] = useState<any[]>([]);
-  const [isCommunityLoading, setIsCommunityLoading] = useState(true);
   const [communitySearch, setCommunitySearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   
@@ -40,28 +35,13 @@ export default function ExplorePage() {
     handlePexelsSearch("art artistic");
   }, []);
 
-  // Fetch Community on mount
-  useEffect(() => {
-    if (!db) return;
-    const q = query(collection(db, "posts"), orderBy("createdAt", "desc"));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const posts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setCommunityArtworks(posts);
-      setIsCommunityLoading(false);
-    }, async (error) => {
-      const permissionError = new FirestorePermissionError({
-        path: 'posts',
-        operation: 'list',
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      setIsCommunityLoading(false);
-    });
-
-    return () => unsubscribe();
+  // Community Query using specialized hooks for real-time and stability
+  const communityQuery = useMemoFirebase(() => {
+    if (!db) return null;
+    return query(collection(db, "posts"), orderBy("createdAt", "desc"));
   }, [db]);
+
+  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection(communityQuery);
 
   const handlePexelsSearch = async (term: string) => {
     setIsPexelsLoading(true);
@@ -113,8 +93,9 @@ export default function ExplorePage() {
               placeholder="Search global discovery or community tags..."
               value={pexelsQuery || communitySearch}
               onChange={(e) => {
-                setPexelsQuery(e.target.value);
-                setCommunitySearch(e.target.value);
+                const val = e.target.value;
+                setPexelsQuery(val);
+                setCommunitySearch(val);
               }}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handlePexelsSearch(pexelsQuery);
