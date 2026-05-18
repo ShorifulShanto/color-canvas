@@ -15,49 +15,30 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 
 export default function ExplorePage() {
-  const db = useFirestore();
-  const router = useRouter();
-  const { user } = useUser();
-  
-  // Pexels State
-  const [pexelsQuery, setPexelsQuery] = useState("");
-  const [pexelsPhotos, setPexelsPhotos] = useState<PexelsPhoto[]>([]);
-  const [isPexelsLoading, setIsPexelsLoading] = useState(false);
-
-  // Community State
+  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection("communityQuery");
   const [communitySearch, setCommunitySearch] = useState("");
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
-  
-  const communityTags = ["Abstract", "Landscape", "Digital", "Oil", "Space", "Minimalist", "Neon", "Portrait"];
-
-  // Fetch Pexels on mount
-  useEffect(() => {
-    handlePexelsSearch("art artistic");
-  }, []);
-
-  // Community Query using specialized hooks for real-time and stability
-  const communityQuery = useMemoFirebase(() => {
-    if (!db) return null;
-    return query(collection(db, "posts"), orderBy("createdAt", "desc"));
-  }, [db]);
-
-  const { data: communityArtworks = [], isLoading: isCommunityLoading } = useCollection(communityQuery);
+  const [searchPixelsTerm, setSearchPixelsTerm] = useState("");
+  const [pixelsPhotos, setPixelsPhotos] = useState<any[]>([]);
+  const [isPixelsLoading, setIsPixelsLoading] = useState(false);
+  const router = useRouter();
 
   const handlePexelsSearch = async (term: string) => {
-    setIsPexelsLoading(true);
     try {
+      setIsPixelsLoading(true);
       const results = await searchPexels(term || "art", 24);
-      setPexelsPhotos(results);
+      setPixelsPhotos(results);
     } finally {
-      setIsPexelsLoading(false);
+      setIsPixelsLoading(false);
     }
   };
 
-  const filteredCommunity = communityArtworks?.filter(art => {
-    const matchesSearch = 
-      art.title?.toLowerCase().includes(communitySearch.toLowerCase()) ||
-      art.username?.toLowerCase().includes(communitySearch.toLowerCase());
-    const matchesTag = selectedTag ? art.tags?.includes(selectedTag) : true;
+  const filteredCommunity = (communityArtworks || []).filter(art => {
+    if (!art) return false;
+    const matchesSearch =
+      (art.title || "").toLowerCase().includes((communitySearch || "").toLowerCase()) ||
+      (art.username || "").toLowerCase().includes((communitySearch || "").toLowerCase());
+    const matchesTag = selectedTag ? (art.tags || []).includes(selectedTag) : true;
     return matchesSearch && matchesTag;
   });
 
@@ -65,7 +46,6 @@ export default function ExplorePage() {
     const encodedUrl = encodeURIComponent(url);
     router.push(`/upload?source=${encodedUrl}`);
   };
-
   return (
     <div className="container mx-auto px-4 py-12 space-y-12 min-h-screen">
       <div className="space-y-4 max-w-3xl">
