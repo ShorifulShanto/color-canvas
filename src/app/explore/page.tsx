@@ -53,9 +53,9 @@ export default function ExplorePage() {
     }
   };
 
-  const filteredCommunity = <communityArtworks?.filter(art => {
+  const filteredCommunity = communityArtworks?.filter(art => {
     const matchesSearch = 
-      art.title?.toLowerCase().includes(communitySearch.toLowerCase()) || 
+      art.title?.toLowerCase().includes(communitySearch.toLowerCase()) ||
       art.username?.toLowerCase().includes(communitySearch.toLowerCase());
     const matchesTag = selectedTag ? art.tags?.includes(selectedTag) : true;
     return matchesSearch && matchesTag;
